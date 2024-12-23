@@ -34,7 +34,7 @@ rank_structure:
       score_limit: 50
       max_missed: 10
       command: "k!quiz jpdb1k 50 hardcore nd mmq=10 dauq=1 font=5 atl=16 color=#f173ff size=100"
-      no_timeout: false
+      no_timeout: true
 
     - name: "Debut Idol"
       require_role: null
@@ -52,7 +52,7 @@ rank_structure:
       score_limit: 50
       max_missed: 10
       command: "k!quiz jpdb2_5k+jpdb5k 50 hardcore nd mmq=10 dauq=1 font=5 atl=16 color=#f173ff size=100 effect=antiocr"
-      no_timeout: false
+      no_timeout: true
 
     - name: "Major Idol"
       require_role: null
@@ -70,7 +70,7 @@ rank_structure:
       score_limit: 50
       max_missed: 10
       command: "k!quiz jpdb5k+jpdb10k 50 hardcore nd mmq=10 dauq=1 font=5 atl=16 color=#f173ff size=100 effect=antiocr"
-      no_timeout: false
+      no_timeout: true
 
     - name: "Prima Idol Vocab"
       require_role: null
@@ -88,7 +88,7 @@ rank_structure:
       score_limit: 50
       max_missed: 10
       command: "k!quiz jpdb10k+jpdb15k 50 hardcore nd mmq=10 dauq=1 font=5 atl=16 color=#f173ff size=100 effect=antiocr"
-      no_timeout: false
+      no_timeout: true
 
     - name: "Divine Idol Vocab"
       require_role: null
@@ -106,7 +106,7 @@ rank_structure:
       score_limit: 50
       max_missed: 10
       command: "k!quiz jpdb15k+jpdb20k 50 hardcore nd mmq=10 dauq=1 font=5 atl=16 color=#f173ff size=100 effect=antiocr"
-      no_timeout: false
+      no_timeout: true
 
     - name: "Eternal Idol Vocab"
       require_role: null
@@ -124,7 +124,7 @@ rank_structure:
       score_limit: 50
       max_missed: 10
       command: "k!quiz jpdb20k+jpdb25k 50 hardcore nd mmq=10 dauq=1 font=5 atl=16 color=#f173ff size=100 effect=antiocr"
-      no_timeout: false
+      no_timeout: true
 
     - name: "GN2"
       require_role: null
@@ -141,7 +141,7 @@ rank_structure:
       score_limit: 20
       max_missed: 4
       command: "k!quiz gn2 nd 20 mmq=4 atl=30"
-      no_timeout: false
+      no_timeout: true
 
     - name: "GN1"
       require_role: null
@@ -158,7 +158,7 @@ rank_structure:
       score_limit: 20
       max_missed: 4
       command: "k!quiz gn1 nd 20 mmq=4 atl=30"
-      no_timeout: false
+      no_timeout: true
 
     - name: "Prima Idol"
       require_role: null
@@ -167,7 +167,7 @@ rank_structure:
       quizzes_required: ["GN2", "Prima Idol Vocab"]
       rank_to_get: 795699221365260359
       command: null
-      no_timeout: false
+      no_timeout: true
 
     - name: "Divine Idol"
       require_role: null
@@ -176,7 +176,7 @@ rank_structure:
       quizzes_required: ["GN1", "Divine Idol Vocab"]
       rank_to_get: 1026918330566721576
       command: null
-      no_timeout: false
+      no_timeout: true
 
     - name: "Eternal Idol"
       require_role: null
@@ -185,7 +185,7 @@ rank_structure:
       quizzes_required: ["GN1", "Eternal Idol Vocab"]
       rank_to_get: 1026918224266280960
       command: null
-      no_timeout: false
+      no_timeout: true
 
     - name: "Immortal Idol"
       require_role: 1026918224266280960
@@ -204,7 +204,7 @@ rank_structure:
       score_limit: 50
       max_missed: 9
       command: "k!quiz haado+insane+jpdb50k 50 nd hardcore dauq=1 font=5 atl=16 mmq=9 color=#f173ff size=100 effect=antiocr"
-      no_timeout: false
+      no_timeout: true
 
     - name: "TMW Owner"
       require_role: null
@@ -225,9 +225,9 @@ rank_structure:
         - "places_full"
       deck_range: null
       score_limit: 50
-      max_missed: 9
-      command: "k!quiz n0+cope+kunyomi1kfull+loli+Myouji+jpdefs+places_full 50 nd hardcore dauq=1 font=7 atl=16 mmq=9 color=#f173ff size=90 effect=antiocr"
-      no_timeout: false
+      max_missed: 1
+      command: "k!quiz n0+cope+kunyomi1kfull+loli+Myouji+jpdefs+places_full 50 nd hardcore dauq=1 font=7 atl=16 mmq=1 color=#f173ff size=90 effect=antiocr"
+      no_timeout: true
 
   1297383002610995272: # Test_Guild
     - name: "Student"
@@ -444,6 +444,31 @@ rank_settings:
       - 1027717683199873075 # Quiz-3
       - 1184238092853456986 # Quiz-4
       - 1184238116740014170 # Quiz-5
+      - 1320812555425284156
+      - 1320824453898309632
+      - 1320824494708756592
+      - 1320824533904789534
+      - 1320824575361159188
+      - 1320824607359500368
+      - 1320824644219179048
+      - 1320824710547636285
+      - 1320824779737010237
+      - 1320824816449880226
+      - 1320824926256500759
+      - 1320824965250940948
+      - 1320825003381624862
+      - 1320825067885826142
+      - 1124491277912772658
+      - 1320846040701599837
+      - 1320846078970429481
+      - 1320846117310566410
+      - 1320846250085580943
+      - 1320846305538605116
+      - 1320846354733600849
+      - 1320846406809813083
+      - 1320846458731106354
+      - 1320846506076667945
+      - 1320846555581907069
     restricted_quiz_names:
       - "jpdb1k"
       - "jpdb2_5k"

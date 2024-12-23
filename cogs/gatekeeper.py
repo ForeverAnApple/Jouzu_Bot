@@ -213,8 +213,8 @@ class LevelUp(commands.Cog):
 
         rank_has_cooldown = await self.rank_has_cooldown(message.guild.id, performed_quiz_name)
 
-        is_on_cooldown = await self.is_on_cooldown(message, performed_quiz_name)
-        if is_on_cooldown and rank_has_cooldown:
+        is_on_cooldown = await self.is_on_cooldown(message, performed_quiz_name, rank_has_cooldown)
+        if is_on_cooldown:
             await timeout_member(message.author, 2, "Quiz on cooldown.")
             return False
 
@@ -236,7 +236,9 @@ class LevelUp(commands.Cog):
 
         return True
 
-    async def is_on_cooldown(self, message: discord.Message, quiz_name):
+    async def is_on_cooldown(self, message: discord.Message, quiz_name, rank_has_cooldown):
+        if not rank_has_cooldown:
+            return False
         last_attempt = await self.bot.GET_ONE(GET_LAST_QUIZ_ATTEMPT, (message.guild.id, message.author.id, quiz_name))
         if not last_attempt:
             return False
