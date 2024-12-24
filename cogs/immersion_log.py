@@ -339,11 +339,11 @@ class ImmersionLog(commands.Cog):
             await logged_message.reply(f"> {comment}")
 
         # Notify immersion achievements
-        achievement_notif_str = '🎉 **Achievement Reached!** 🎉'
+        achievement_notif_str = ''
         if achievement_reached:
-            achievement_notif_str += f"\n\n**{current_achievement['title']}**\n\n{current_achievement['description']}\n"
+            achievement_notif_str += f"🎉 **{media_type} Achievement Reached!** 🎉\n\n**{current_achievement['title']}**\n\n{current_achievement['description']}\n"
         if immersion_achievement_reached:
-            achievement_notif_str += f"\n\n**{current_immersion_achievement['title']}**\n\n{current_immersion_achievement['description']}"
+            achievement_notif_str += f"🎉 **Total Immersion Achievement Reached!** 🎉\n\n**{current_immersion_achievement['title']}**\n\n{current_immersion_achievement['description']}"
         if achievement_reached or immersion_achievement_reached:
             await logged_message.reply(achievement_notif_str)
 

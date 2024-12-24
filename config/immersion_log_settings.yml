@@ -285,7 +285,7 @@ achievements:
       description: "You’ve scaled the peaks of immersion, gaining an expansive view of Japanese culture. 🏔️"
     - points: 25000
       title: "🧠🏞️ 清流"
-      description: "You’ve climbed to new heights, where patterns flow like a sparkling mountain stream." 🏞️"
+      description: "You’ve climbed to new heights, where patterns flow like a sparkling mountain stream. 🏞️"
     - points: 50000
       title: "🧠🌅 暁光"
       description: "Your dedication glows like the first light of dawn, bringing you deeper into the warmth of a new life. 🌅"
@@ -301,3 +301,4 @@ achievements:
     - points: 750000
       title: "🧠🌲🌲 永遠の森"
       description: "You’ve immersed yourself so deeply that you’ve become one with the forest itself. Its secrets are at your command. 🌲🌲"
+
