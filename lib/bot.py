@@ -31,9 +31,20 @@ class TMWBot(commands.Bot):
 
         cogs = [cog for cog in os.listdir(self.cog_folder) if cog.endswith(".py") and
                 (cogs_to_load == "*" or cog[:-3] in cogs_to_load)]
-
+        
+        cogs_whitelist = {
+            "sync",
+            "username_fetcher",
+            "immersion_log",
+            "immersion_goals",
+            "immersion_stats",
+        }
         for cog in cogs:
+            cog_name = f"{cog[:-3]}"
             cog = f"{self.cog_folder}.{cog[:-3]}"
+            if cog_name not in cogs_whitelist:
+                # print(f"{cog_name} is not in the whitelist, not loaded")
+                continue
             await self.load_extension(cog)
             print(f"Loaded {cog}")
 

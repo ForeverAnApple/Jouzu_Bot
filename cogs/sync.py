@@ -23,6 +23,7 @@ class Sync(commands.Cog):
     @is_authorized()
     async def sync_guild(self, ctx: discord.ext.commands.Context):
         """Sync commands to current guild."""
+        await ctx.send(f"Syncing commands to guild with id {ctx.guild.id}...")
         self.bot.tree.copy_global_to(guild=discord.Object(id=ctx.guild.id))
         self.bot.tree.clear_commands(guild=None)
         await self.bot.tree.sync(guild=discord.Object(id=ctx.guild.id))
@@ -32,6 +33,7 @@ class Sync(commands.Cog):
     @is_authorized()
     async def sync_global(self, ctx: discord.ext.commands.Context):
         """Sync commands to global."""
+        await ctx.send("Syncing commands to global...")
         await self.bot.tree.sync()
         await ctx.send("Synced commands to global.")
 
