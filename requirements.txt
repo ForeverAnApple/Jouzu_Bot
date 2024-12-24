@@ -1,12 +1,13 @@
-discord.py
-python-dotenv
-aiosqlite
 aiohttp
-pyyaml
+aiosqlite
+audioop-lts; python_version>='3.13'
+bar_chart_race
+discord.py
+humanize
 matplotlib
 numpy
-seaborn
 pandas
-humanize
-bar_chart_race
+python-dotenv
+pyyaml
 requests
+seaborn
