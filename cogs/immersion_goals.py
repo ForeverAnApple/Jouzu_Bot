@@ -40,7 +40,7 @@ GET_GOAL_STATUS_QUERY = """
     SELECT goal_id, goal_type, goal_value, end_date, created_at, 
         CASE
             WHEN goal_type = 'points' THEN (
-                SELECT COALESCE(SUM(points_received), 0) 
+                SELECT COALESCE(SUM(time_logged), 0) 
                 FROM logs 
                 WHERE user_id = ? 
                 AND media_type = ? 

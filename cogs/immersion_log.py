@@ -89,12 +89,12 @@ GET_USER_LOGS_FOR_EXPORT_QUERY = """
 """
 
 GET_MONTHLY_LEADERBOARD_QUERY = """
-    SELECT user_id, SUM(time_logged) AS total_points, SUM(amount_logged)
+    SELECT user_id, SUM(time_logged) AS total_time, SUM(amount_logged)
     FROM logs
     WHERE (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?)
     GROUP BY user_id
-    ORDER BY total_points DESC
+    ORDER BY total_time DESC
     LIMIT 20
 """
 
@@ -265,7 +265,7 @@ class ImmersionLog(commands.Cog):
         thumbnail_url = await self.get_thumbnail_url(media_type, name)
         source_url = await self.get_source_url(media_type, name)
 
-        # This is to diplay how the points received were calculated without directly using the multiplier....
+        # This is to diplay how the time received were calculated without directly using the multiplier....
         # could be improved on as this is pretty crazy... could set it for each group at this point.
         # TODO: Probably change this.
         # if MEDIA_TYPES[media_type]['points_multiplier'] < 1:
@@ -439,18 +439,18 @@ class ImmersionLog(commands.Cog):
         # print(f'achievements_set include: {achievements_dict}')
 
         for achievement_group, unit_name in achievements_dict.items():
-            total_points = await self.get_total_units_for_achievement_group(user_id, achievement_group)
+            total_units = await self.get_total_units_for_achievement_group(user_id, achievement_group)
             if achievement_group == 'Immersion':
-                total_points = await self.get_total_time_for_user(user_id)
-            if total_points <= 0:
+                total_units = await self.get_total_time_for_user(user_id)
+            if total_units <= 0:
                 continue
             achievements_list.append(f"\n**-----{achievement_group.upper()}-----**\n")
-            current_achievement, next_achievement = await get_current_and_next_achievement(achievement_group, total_points)
+            current_achievement, next_achievement = await get_current_and_next_achievement(achievement_group, total_units)
             if current_achievement:
                 current_achievement_info = f"**Reached {current_achievement['title']} (`{current_achievement['points']}` {unit_name}s)**"
                 current_achievement_info += f"`\n{current_achievement['description']}`"
             if next_achievement:
-                next_achievement_info = f"\n➤ Next: {next_achievement['title']} (`{int(total_points)}/{next_achievement['points']}` {unit_name}s)"
+                next_achievement_info = f"\n➤ Next: {next_achievement['title']} (`{int(total_units)}/{next_achievement['points']}` {unit_name}s)"
 
             if current_achievement:
                 achievements_list.append(current_achievement_info)
@@ -570,7 +570,7 @@ class ImmersionLog(commands.Cog):
 
         if leaderboard_data:
             for rank, (user_id, total_points, total_logged) in enumerate(leaderboard_data, start=1):
-                user_name = await get_username_db(self.bot, user_id)
+                (_, user_name) = await get_username_db(self.bot, user_id)
                 total_points_humanized = human_readable_number(total_points)
                 total_logged_humanized = human_readable_number(total_logged)
 
@@ -591,7 +591,7 @@ class ImmersionLog(commands.Cog):
         if not user_in_top_20 and user_data and user_data[0] and user_data[0][0]:
             user_points = human_readable_number(user_data[0][0])
             user_logged = human_readable_number(user_data[0][1])
-            user_name = await get_username_db(self.bot, interaction.user.id)
+            (_, user_name) = await get_username_db(self.bot, interaction.user.id)
             description += f"\n**You**: **{user_points} pts**"
             if unit_name:
                 description += f" | **{user_logged} {unit_name}s**"
