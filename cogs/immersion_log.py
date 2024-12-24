@@ -75,6 +75,12 @@ GET_TOTAL_UNITS_FOR_ACHIEVEMENT_GROUP_QUERY = """
     WHERE user_id = ? AND achievement_group = ?;
 """
 
+GET_TOTAL_TIME_FOR_USER_QUERY = """
+    SELECT SUM(points_received) AS total_time
+    FROM logs
+    WHERE user_id = ?;
+"""
+
 GET_USER_LOGS_FOR_EXPORT_QUERY = """
     SELECT log_id, media_type, media_name, comment, amount_logged, points_received, log_date
     FROM logs
@@ -231,6 +237,7 @@ class ImmersionLog(commands.Cog):
         total_achievement_units_before = await self.get_total_units_for_achievement_group(interaction.user.id, achievement_group)
 
         current_month_time_before = await self.get_time_for_current_month(interaction.user.id)
+        current_total_time_before = await self.get_total_time_for_user(interaction.user.id)
 
         await self.bot.RUN(
             CREATE_LOG_QUERY,
@@ -239,11 +246,17 @@ class ImmersionLog(commands.Cog):
         )
 
         current_month_time_after = await self.get_time_for_current_month(interaction.user.id)
+        current_total_time_after = await self.get_total_time_for_user(interaction.user.id)
 
+        # Check goal specifically for the category
         goal_statuses = await check_goal_status(self.bot, interaction.user.id, media_type)
 
+        # Check achievement for the category
         total_achievement_units_after = total_achievement_units_before + amount
         achievement_reached, current_achievement, next_achievement = await get_achievement_reached_info(achievement_group, total_achievement_units_before, total_achievement_units_after)
+
+        # Check achievement for total immersion time overall
+        immersion_achievement_reached, current_immersion_achievement, next_immersion_achievement = await get_achievement_reached_info('Immersion', current_total_time_before, current_total_time_after)
 
         if interaction.guild and interaction.guild.emojis:
             random_guild_emoji = random.choice(interaction.guild.emojis)
@@ -290,15 +303,23 @@ class ImmersionLog(commands.Cog):
         log_embed.add_field(name="Total Minutes/Month",
                             value=f"`{current_month_time_before}` → `{current_month_time_after}`")
         log_embed.add_field(name="Streak", value=f"{consecutive_days} day{'s' if consecutive_days > 1 else ''}")
-        if not unit_is_time:
-            log_embed.add_field(name=f"{unit_name}(s) Received", value=amount)
-            log_embed.add_field(name=f"Total {unit_name}s",
-                                value=f"`{total_achievement_units_before}` → `{total_achievement_units_after}`")
+        log_embed.add_field(name=f"Category: {unit_name}(s) Received", value=amount)
+        log_embed.add_field(name=f"Total {unit_name}s",
+                            value=f"`{total_achievement_units_before}` → `{total_achievement_units_after}`")
+
+        # Achievement reached for current category
         if achievement_reached and current_achievement:
-            log_embed.add_field(name="Achievement Reached! 🎉", value=current_achievement["title"], inline=False)
+            log_embed.add_field(name=f"{media_type} Achievement Reached! 🎉", value=current_achievement["title"], inline=False)
         if next_achievement:
             next_achievement_info = f"{next_achievement['title']} (`{int(total_achievement_units_after)}/{next_achievement['points']}` {achievement_group} {unit_name}s)"
-            log_embed.add_field(name="Next Achievement", value=next_achievement_info, inline=False)
+            log_embed.add_field(name=f"Next {media_type} Achievement", value=next_achievement_info, inline=False)
+
+        # Immersion achievement reached
+        if immersion_achievement_reached and current_immersion_achievement:
+            log_embed.add_field(name="Total Immersion Time Achievement Reached! 🎉", value=current_immersion_achievement["title"], inline=False)
+        if next_immersion_achievement:
+            next_immersion_achievement_info = f"{next_immersion_achievement['title']} (`{int(current_total_time_after)}/{next_immersion_achievement['points']}` Total Immersion {unit_name}s)"
+            log_embed.add_field(name="Next Total Immersion Time Achievement", value=next_immersion_achievement_info, inline=False)
 
         for i, goal_status in enumerate(goal_statuses, start=1):
             if len(log_embed.fields) >= 24:
@@ -317,8 +338,16 @@ class ImmersionLog(commands.Cog):
         elif comment and (comment.startswith("http://") or comment.startswith("https://")):
             await logged_message.reply(f"> {comment}")
 
+        # Notify immersion achievements
+        achievement_notif_str = '🎉 **Achievement Reached!** 🎉'
         if achievement_reached:
-            await logged_message.reply(f"🎉 **Achievement Reached!** 🎉\n\n**{current_achievement['title']}**\n\n{current_achievement['description']}")
+            achievement_notif_str += f"\n\n**{current_achievement['title']}**\n\n{current_achievement['description']}\n"
+        if immersion_achievement_reached:
+            achievement_notif_str += f"\n\n**{current_immersion_achievement['title']}**\n\n{current_immersion_achievement['description']}"
+        if achievement_reached or immersion_achievement_reached:
+            await logged_message.reply(achievement_notif_str)
+
+
 
     async def get_consecutive_days_logged(self, user_id: int) -> int:
         result = await self.bot.GET(GET_CONSECUTIVE_DAYS_QUERY, (user_id,))
@@ -401,8 +430,8 @@ class ImmersionLog(commands.Cog):
             return result[0][0]
         return 0.0
 
-    async def get_total_time_for_group(self, user_id: int) -> float:
-        result = await self.bot.GET(GET_TOTAL_TIME_FOR_USER_QUERY, (user_id))
+    async def get_total_time_for_user(self, user_id: int) -> float:
+        result = await self.bot.GET(GET_TOTAL_TIME_FOR_USER_QUERY, (user_id,))
         if result and result[0] and result[0][0] is not None:
             return result[0][0]
         return 0.0
