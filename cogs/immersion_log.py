@@ -45,8 +45,8 @@ GET_CONSECUTIVE_DAYS_QUERY = """
     ORDER BY log_date DESC;
 """
 
-GET_POINTS_FOR_CURRENT_MONTH_QUERY = """
-    SELECT SUM(points_received) AS total_points
+GET_TIME_FOR_CURRENT_MONTH_QUERY = """
+    SELECT SUM(points_received) AS total_time
     FROM logs
     WHERE user_id = ? AND strftime('%Y-%m', log_date) = strftime('%Y-%m', 'now');
 """
@@ -69,8 +69,8 @@ DELETE_LOG_QUERY = """
     WHERE log_id = ? AND user_id = ?;
 """
 
-GET_TOTAL_POINTS_FOR_ACHIEVEMENT_GROUP_QUERY = """
-    SELECT SUM(points_received) AS total_points
+GET_TOTAL_UNITS_FOR_ACHIEVEMENT_GROUP_QUERY = """
+    SELECT SUM(amount_logged) AS total_units
     FROM logs
     WHERE user_id = ? AND achievement_group = ?;
 """
@@ -93,12 +93,18 @@ GET_MONTHLY_LEADERBOARD_QUERY = """
 """
 
 GET_USER_MONTHLY_POINTS_QUERY = """
-    SELECT SUM(points_received) AS total_points, SUM(amount_logged)
+    SELECT SUM(points_received) AS total_time, SUM(amount_logged)
     FROM logs
     WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?);
 """
 
+GET_USER_MONTHLY_TIME_FOR_GROUP_QUERY = """
+    SELECT SUM(points_received) AS total_time, SUM(amount_logged)
+    FROM logs
+    WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
+    AND (? IS NULL OR media_type = ?);
+"""
 
 async def log_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
@@ -158,13 +164,14 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.describe(
         media_type='The type of media you are logging.',
         amount='Amount. For time-based logs, use the number of minutes.',
+        time_mins='How long you immersed for (in minutes)',
         name='You can use VNDB ID/Title for VNs, AniList ID/Titlefor Anime/Manga, TMDB titles for Listening or provide free text.',
         comment='Short comment about your log.',
         backfill_date='The date for the log, in YYYY-MM-DD format. You can log no more than 7 days into the past.'
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
-    async def log(self, interaction: discord.Interaction, media_type: str, amount: str, name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
+    async def log(self, interaction: discord.Interaction, media_type: str, amount: str, time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
         if not await is_valid_channel(interaction):
             return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
 
@@ -181,6 +188,18 @@ class ImmersionLog(commands.Cog):
             return await interaction.response.send_message("Name must be less than 150 characters.", ephemeral=True)
         elif name:
             name = name.strip()
+        
+        unit_is_time = MEDIA_TYPES[media_type]['unit_is_time']
+        if time_mins and unit_is_time:
+            return await interaction.response.send_message("Optional time is not needed for this tracking method.", ephemeral=True)
+        if time_mins and not time_mins.isdigit():
+            return await interaction.response.send_message("Time tracking must be a valid number.", ephemeral=True)
+        elif not unit_is_time and not time_mins:
+            return await interaction.response.send_message("Time tracking is required!", ephemeral=True)
+        elif time_mins:
+            time_mins = int(time_mins)
+            if time_mins < 0 or time_mins > 1440:
+                return await interaction.response.send_message("Time tracking must be between 1 - 1440", ephemeral=True)
 
         if comment and len(comment) > 200:
             return await interaction.response.send_message("Comment must be less than 200 characters.", ephemeral=True)
@@ -203,11 +222,15 @@ class ImmersionLog(commands.Cog):
 
         await interaction.response.defer()
 
-        points_received = round(amount * MEDIA_TYPES[media_type]['points_multiplier'], 2)
+        #points_received = round(amount * MEDIA_TYPES[media_type]['points_multiplier'], 2)
+        if unit_is_time:
+            points_received = amount
+        else:
+            points_received = time_mins if time_mins else 0
         achievement_group = MEDIA_TYPES[media_type]['Achievement_Group']
-        total_achievement_points_before = await self.get_total_points_for_achievement_group(interaction.user.id, achievement_group)
+        total_achievement_units_before = await self.get_total_units_for_achievement_group(interaction.user.id, achievement_group)
 
-        current_month_points_before = await self.get_points_for_current_month(interaction.user.id)
+        current_month_time_before = await self.get_time_for_current_month(interaction.user.id)
 
         await self.bot.RUN(
             CREATE_LOG_QUERY,
@@ -215,12 +238,12 @@ class ImmersionLog(commands.Cog):
              points_received, log_date, MEDIA_TYPES[media_type]['Achievement_Group'])
         )
 
-        current_month_points_after = await self.get_points_for_current_month(interaction.user.id)
+        current_month_time_after = await self.get_time_for_current_month(interaction.user.id)
 
         goal_statuses = await check_goal_status(self.bot, interaction.user.id, media_type)
 
-        total_achievement_points_after = total_achievement_points_before + points_received
-        achievement_reached, current_achievement, next_achievement = await get_achievement_reached_info(achievement_group, total_achievement_points_before, total_achievement_points_after)
+        total_achievement_units_after = total_achievement_units_before + amount
+        achievement_reached, current_achievement, next_achievement = await get_achievement_reached_info(achievement_group, total_achievement_units_before, total_achievement_units_after)
 
         if interaction.guild and interaction.guild.emojis:
             random_guild_emoji = random.choice(interaction.guild.emojis)
@@ -235,40 +258,46 @@ class ImmersionLog(commands.Cog):
         # This is to diplay how the points received were calculated without directly using the multiplier....
         # could be improved on as this is pretty crazy... could set it for each group at this point.
         # TODO: Probably change this.
-        if MEDIA_TYPES[media_type]['points_multiplier'] < 1:
-            needed_for_one = round(1 / MEDIA_TYPES[media_type]['points_multiplier'], 2)
-            if needed_for_one.is_integer():
-                points_received_str = f"`+{points_received}` (X/{int(needed_for_one)})"
-            elif needed_for_one < 5:
-                points_received_str = f"`+{points_received}` (X/{needed_for_one:.2f})"
-            else:
-                points_received_str = f"`+{points_received}` (X/{int(needed_for_one)})"
-        else:
-            received_for_one = round(MEDIA_TYPES[media_type]['points_multiplier'], 2)
-            if received_for_one.is_integer():
-                points_received_str = f"`+{points_received}` (X*{int(received_for_one)})"
-            elif received_for_one < 5:
-                points_received_str = f"`+{points_received}` (X*{received_for_one:.2f})"
-            else:
-                points_received_str = f"`+{points_received}` (X*{int(received_for_one)})"
+        # if MEDIA_TYPES[media_type]['points_multiplier'] < 1:
+        #     needed_for_one = round(1 / MEDIA_TYPES[media_type]['points_multiplier'], 2)
+        #     if needed_for_one.is_integer():
+        #         points_received_str = f"`+{points_received}` (X/{int(needed_for_one)})"
+        #     elif needed_for_one < 5:
+        #         points_received_str = f"`+{points_received}` (X/{needed_for_one:.2f})"
+        #     else:
+        #         points_received_str = f"`+{points_received}` (X/{int(needed_for_one)})"
+        # else:
+        #     received_for_one = round(MEDIA_TYPES[media_type]['points_multiplier'], 2)
+        #     if received_for_one.is_integer():
+        #         points_received_str = f"`+{points_received}` (X*{int(received_for_one)})"
+        #     elif received_for_one < 5:
+        #         points_received_str = f"`+{points_received}` (X*{received_for_one:.2f})"
+        #     else:
+        #         points_received_str = f"`+{points_received}` (X*{int(received_for_one)})"
         ##########################
+        points_received_str = f"+{points_received}min(s)"
 
+        unit_name=MEDIA_TYPES[media_type]['unit_name']
         embed_title = (
-            f"Logged {amount} {MEDIA_TYPES[media_type]['unit_name']}"
+            f"Logged {amount} {unit_name}"
             f"{'s' if amount > 1 else ''} of {media_type} {random_guild_emoji}"
         )
 
         log_embed = discord.Embed(title=embed_title, color=discord.Color.random())
         log_embed.description = f"[{actual_title}]({source_url})" if source_url else actual_title
         log_embed.add_field(name="Comment", value=comment or "No comment", inline=False)
-        log_embed.add_field(name="Points Received", value=points_received_str)
-        log_embed.add_field(name="Total Points/Month",
-                            value=f"`{current_month_points_before}` → `{current_month_points_after}`")
+        log_embed.add_field(name="Minutes Received", value=points_received_str)
+        log_embed.add_field(name="Total Minutes/Month",
+                            value=f"`{current_month_time_before}` → `{current_month_time_after}`")
         log_embed.add_field(name="Streak", value=f"{consecutive_days} day{'s' if consecutive_days > 1 else ''}")
+        if not unit_is_time:
+            log_embed.add_field(name=f"{unit_name}(s) Received", value=amount)
+            log_embed.add_field(name=f"Total {unit_name}s",
+                                value=f"`{total_achievement_units_before}` → `{total_achievement_units_after}`")
         if achievement_reached and current_achievement:
             log_embed.add_field(name="Achievement Reached! 🎉", value=current_achievement["title"], inline=False)
         if next_achievement:
-            next_achievement_info = f"{next_achievement['title']} (`{int(total_achievement_points_after)}/{next_achievement['points']}` {achievement_group} points)"
+            next_achievement_info = f"{next_achievement['title']} (`{int(total_achievement_units_after)}/{next_achievement['points']}` {achievement_group} {unit_name}s)"
             log_embed.add_field(name="Next Achievement", value=next_achievement_info, inline=False)
 
         for i, goal_status in enumerate(goal_statuses, start=1):
@@ -308,8 +337,8 @@ class ImmersionLog(commands.Cog):
 
         return consecutive_days
 
-    async def get_points_for_current_month(self, user_id: int) -> float:
-        result = await self.bot.GET(GET_POINTS_FOR_CURRENT_MONTH_QUERY, (user_id,))
+    async def get_time_for_current_month(self, user_id: int) -> float:
+        result = await self.bot.GET(GET_TIME_FOR_CURRENT_MONTH_QUERY, (user_id,))
         if result and result[0] and result[0][0]:
             return round(result[0][0], 2)
         return 0.0
@@ -366,8 +395,14 @@ class ImmersionLog(commands.Cog):
             f"of `{media_type}` (`{media_name or 'No Name'}`) on `{log_date}` has been deleted."
         )
 
-    async def get_total_points_for_achievement_group(self, user_id: int, achievement_group: str) -> float:
-        result = await self.bot.GET(GET_TOTAL_POINTS_FOR_ACHIEVEMENT_GROUP_QUERY, (user_id, achievement_group))
+    async def get_total_units_for_achievement_group(self, user_id: int, achievement_group: str) -> float:
+        result = await self.bot.GET(GET_TOTAL_UNITS_FOR_ACHIEVEMENT_GROUP_QUERY, (user_id, achievement_group))
+        if result and result[0] and result[0][0] is not None:
+            return result[0][0]
+        return 0.0
+
+    async def get_total_time_for_group(self, user_id: int) -> float:
+        result = await self.bot.GET(GET_TOTAL_TIME_FOR_USER_QUERY, (user_id))
         if result and result[0] and result[0][0] is not None:
             return result[0][0]
         return 0.0
@@ -381,8 +416,8 @@ class ImmersionLog(commands.Cog):
         achievements_list = []
 
         for achievement_group in set(settings_group['Achievement_Group'] for settings_group in MEDIA_TYPES.values()):
-            total_points = await self.get_total_points_for_achievement_group(user_id, achievement_group)
-            if total_points == 0:
+            total_points = await self.get_total_units_for_achievement_group(user_id, achievement_group)
+            if total_points <= 0:
                 continue
             achievements_list.append(f"\n**-----{achievement_group.upper()}-----**\n")
             current_achievement, next_achievement = await get_current_and_next_achievement(achievement_group, total_points)
@@ -408,6 +443,9 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.command(name='log_export', description='Export immersion logs as a CSV file! Optionally, specify a user ID to export their logs.')
     @discord.app_commands.describe(user='The user to export logs for (optional)')
     async def log_export(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+        await interaction.response.send_message("Log exports are disabled at the moment.")
+        return
+
         if not await is_valid_channel(interaction):
             return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
 
@@ -475,6 +513,9 @@ class ImmersionLog(commands.Cog):
                                    month='Optionally specify the month in YYYY-MM format or select all with "ALL".')
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     async def log_leaderboard(self, interaction: discord.Interaction, media_type: Optional[str] = None, month: Optional[str] = None):
+        await interaction.response.send_message("Log leaderboards are disabled at the moment.")
+        return
+
         if not await is_valid_channel(interaction):
             return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
 

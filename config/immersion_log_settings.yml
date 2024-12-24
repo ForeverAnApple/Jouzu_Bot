@@ -1,12 +1,11 @@
 points_multipliers:
-  Visual_Novel: 0.0028571428571429 # Characters
-  Manga: 0.25 # Pages
-  Anime: 13.0 # Episodes
+  Anime: 1.0 # Episodes
   Book: 1.0 # Pages
-  Reading_Time: 0.67 # Minutes
-  Listening_Time: 0.67 # Minutes
-  Reading: 0.0028571428571429 # Characters
-  Gaming: 0.67 # Minutes
+  Listening_Time: 1.0 # Minutes
+  Manga: 1.0 # Pages
+  Reading: 1.0 # Characters
+  Reading_Time: 1.0 # Minutes
+  Visual_Novel: 1.0 # Characters
 
 immersion_bot:
   allowed_log_channels:
