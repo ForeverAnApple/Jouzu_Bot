@@ -26,14 +26,14 @@ CREATE_LOGS_TABLE = """
     media_name TEXT,
     comment TEXT,
     amount_logged INTEGER NOT NULL,
-    points_received REAL NOT NULL,
+    time_logged REAL NOT NULL,
     log_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     achievement_group TEXT);
 """
 
 CREATE_LOG_QUERY = """
-    INSERT INTO logs (user_id, media_type, media_name, comment, amount_logged, points_received, log_date, achievement_group)
+    INSERT INTO logs (user_id, media_type, media_name, comment, amount_logged, time_logged, log_date, achievement_group)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 """
 
@@ -46,7 +46,7 @@ GET_CONSECUTIVE_DAYS_QUERY = """
 """
 
 GET_TIME_FOR_CURRENT_MONTH_QUERY = """
-    SELECT SUM(points_received) AS total_time
+    SELECT SUM(time_logged) AS total_time
     FROM logs
     WHERE user_id = ? AND strftime('%Y-%m', log_date) = strftime('%Y-%m', 'now');
 """
@@ -76,20 +76,20 @@ GET_TOTAL_UNITS_FOR_ACHIEVEMENT_GROUP_QUERY = """
 """
 
 GET_TOTAL_TIME_FOR_USER_QUERY = """
-    SELECT SUM(points_received) AS total_time
+    SELECT SUM(time_logged) AS total_time
     FROM logs
     WHERE user_id = ?;
 """
 
 GET_USER_LOGS_FOR_EXPORT_QUERY = """
-    SELECT log_id, media_type, media_name, comment, amount_logged, points_received, log_date
+    SELECT log_id, media_type, media_name, comment, amount_logged, time_logged, log_date
     FROM logs
     WHERE user_id = ?
     ORDER BY log_date DESC;
 """
 
 GET_MONTHLY_LEADERBOARD_QUERY = """
-    SELECT user_id, SUM(points_received) AS total_points, SUM(amount_logged)
+    SELECT user_id, SUM(time_logged) AS total_points, SUM(amount_logged)
     FROM logs
     WHERE (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?)
@@ -99,14 +99,14 @@ GET_MONTHLY_LEADERBOARD_QUERY = """
 """
 
 GET_USER_MONTHLY_POINTS_QUERY = """
-    SELECT SUM(points_received) AS total_time, SUM(amount_logged)
+    SELECT SUM(time_logged) AS total_time, SUM(amount_logged)
     FROM logs
     WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?);
 """
 
 GET_USER_MONTHLY_TIME_FOR_GROUP_QUERY = """
-    SELECT SUM(points_received) AS total_time, SUM(amount_logged)
+    SELECT SUM(time_logged) AS total_time, SUM(amount_logged)
     FROM logs
     WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?);
@@ -225,11 +225,11 @@ class ImmersionLog(commands.Cog):
 
         await interaction.response.defer()
 
-        #points_received = round(amount * MEDIA_TYPES[media_type]['points_multiplier'], 2)
+        #time_logged = round(amount * MEDIA_TYPES[media_type]['points_multiplier'], 2)
         if unit_is_time:
-            points_received = amount
+            time_logged = amount
         else:
-            points_received = time_mins if time_mins else 0
+            time_logged = time_mins if time_mins else 0
         achievement_group = MEDIA_TYPES[media_type]['Achievement_Group']
         total_achievement_units_before = await self.get_total_units_for_achievement_group(interaction.user.id, achievement_group)
 
@@ -239,7 +239,7 @@ class ImmersionLog(commands.Cog):
         await self.bot.RUN(
             CREATE_LOG_QUERY,
             (interaction.user.id, media_type, name, comment, amount,
-             points_received, log_date, MEDIA_TYPES[media_type]['Achievement_Group'])
+             time_logged, log_date, MEDIA_TYPES[media_type]['Achievement_Group'])
         )
 
         current_month_time_after = await self.get_time_for_current_month(interaction.user.id)
@@ -271,21 +271,21 @@ class ImmersionLog(commands.Cog):
         # if MEDIA_TYPES[media_type]['points_multiplier'] < 1:
         #     needed_for_one = round(1 / MEDIA_TYPES[media_type]['points_multiplier'], 2)
         #     if needed_for_one.is_integer():
-        #         points_received_str = f"`+{points_received}` (X/{int(needed_for_one)})"
+        #         time_logged_str = f"`+{time_logged}` (X/{int(needed_for_one)})"
         #     elif needed_for_one < 5:
-        #         points_received_str = f"`+{points_received}` (X/{needed_for_one:.2f})"
+        #         time_logged_str = f"`+{time_logged}` (X/{needed_for_one:.2f})"
         #     else:
-        #         points_received_str = f"`+{points_received}` (X/{int(needed_for_one)})"
+        #         time_logged_str = f"`+{time_logged}` (X/{int(needed_for_one)})"
         # else:
         #     received_for_one = round(MEDIA_TYPES[media_type]['points_multiplier'], 2)
         #     if received_for_one.is_integer():
-        #         points_received_str = f"`+{points_received}` (X*{int(received_for_one)})"
+        #         time_logged_str = f"`+{time_logged}` (X*{int(received_for_one)})"
         #     elif received_for_one < 5:
-        #         points_received_str = f"`+{points_received}` (X*{received_for_one:.2f})"
+        #         time_logged_str = f"`+{time_logged}` (X*{received_for_one:.2f})"
         #     else:
-        #         points_received_str = f"`+{points_received}` (X*{int(received_for_one)})"
+        #         time_logged_str = f"`+{time_logged}` (X*{int(received_for_one)})"
         ##########################
-        points_received_str = f"+{points_received}min(s)"
+        time_logged_str = f"+{time_logged}min(s)"
 
         unit_name=MEDIA_TYPES[media_type]['unit_name']
         embed_title = (
@@ -296,7 +296,7 @@ class ImmersionLog(commands.Cog):
         log_embed = discord.Embed(title=embed_title, color=discord.Color.random())
         log_embed.description = f"[{actual_title}]({source_url})" if source_url else actual_title
         log_embed.add_field(name="Comment", value=comment or "No comment", inline=False)
-        log_embed.add_field(name="Minutes Received", value=points_received_str)
+        log_embed.add_field(name="Minutes Received", value=time_logged_str)
         log_embed.add_field(name="Total Minutes/Month",
                             value=f"`{current_month_time_before}` → `{current_month_time_after}`")
         log_embed.add_field(name="Streak", value=f"{consecutive_days} day{'s' if consecutive_days > 1 else ''}")
@@ -511,7 +511,7 @@ class ImmersionLog(commands.Cog):
 
         log_filename = f"immersion_logs_{user_id}.txt"
         log_filepath = os.path.join("/tmp", log_filename)
-        # log_id, media_type, media_name, comment, amount_logged, points_received, log_date
+        # log_id, media_type, media_name, comment, amount_logged, time_logged, log_date
         with open(log_filepath, mode='w', encoding='utf-8') as log_file:
             for log in user_logs:
                 log_date = datetime.strptime(log[6], '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d')

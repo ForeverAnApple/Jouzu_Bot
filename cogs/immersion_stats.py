@@ -259,7 +259,7 @@ class ImmersionLogMe(commands.Cog):
         logs_df = logs_df.set_index('log_date')
 
         if logs_df[from_date:to_date].empty:
-            return await interaction.followup.send("No logs found for the specified period.", ephemeral=True)
+            return await interaction.followup.send("No logs found for the specified period. Did you forget to enter a time period?", ephemeral=True)
         figure_buffer_bar = await asyncio.to_thread(generate_bar_chart, logs_df, from_date, to_date, immersion_type)
         figure_buffer_heatmap = await asyncio.to_thread(generate_heatmap, logs_df, from_date, to_date, immersion_type)
 
