@@ -315,7 +315,7 @@ class ImmersionLog(commands.Cog):
         if immersion_achievement_reached and current_immersion_achievement:
             log_embed.add_field(name="Total Immersion Time Achievement Reached! 🎉", value=current_immersion_achievement["title"], inline=False)
         if next_immersion_achievement:
-            next_immersion_achievement_info = f"{next_immersion_achievement['title']} (`{int(current_total_time_after)}/{next_immersion_achievement['points']}` Total Immersion {unit_name}s)"
+            next_immersion_achievement_info = f"{next_immersion_achievement['title']} (`{int(current_total_time_after)}/{next_immersion_achievement['points']}` Total Immersion minutes)"
             log_embed.add_field(name="Next Total Immersion Time Achievement", value=next_immersion_achievement_info, inline=False)
 
         for i, goal_status in enumerate(goal_statuses, start=1):
