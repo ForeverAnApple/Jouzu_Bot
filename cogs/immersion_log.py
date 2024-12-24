@@ -434,17 +434,16 @@ class ImmersionLog(commands.Cog):
     async def log_achievements(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         achievements_list = []
-        achievements_set = set(settings_group['Achievement_Group'] for settings_group in MEDIA_TYPES.values())
-        achievements_set.add('Immersion')
-        # print(f'achievements_set include: {achievements_set}')
+        achievements_dict = {settings_group['Achievement_Group']: settings_group['unit_name'] for settings_group in MEDIA_TYPES.values()}
+        achievements_dict['Immersion'] = 'minute'
+        # print(f'achievements_set include: {achievements_dict}')
 
-        for achievement_group in achievements_set:
+        for achievement_group, unit_name in achievements_dict.items():
             total_points = await self.get_total_units_for_achievement_group(user_id, achievement_group)
             if achievement_group == 'Immersion':
                 total_points = await self.get_total_time_for_user(user_id)
             if total_points <= 0:
                 continue
-            unit_name='minute' if achievement_group == 'Immersion' else MEDIA_TYPES[achievement_group]['unit_name']
             achievements_list.append(f"\n**-----{achievement_group.upper()}-----**\n")
             current_achievement, next_achievement = await get_current_and_next_achievement(achievement_group, total_points)
             if current_achievement:
