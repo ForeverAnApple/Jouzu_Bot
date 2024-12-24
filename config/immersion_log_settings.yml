@@ -6,6 +6,7 @@ points_multipliers:
   Reading_Time: 0.67 # Minutes
   Listening_Time: 0.67 # Minutes
   Reading: 0.0028571428571429 # Characters
+  Gaming: 0.67 # Minutes
 
 immersion_bot:
   allowed_log_channels:
@@ -15,145 +16,249 @@ immersion_bot:
 achievements:
   Visual Novel:
     - points: 1
-      title: "🌱 Prologue Student"
-      description: "You took your first steps into the world of visual novels. Countless stories are waiting for you, one click at a time! 🌱"
-    - points: 250
-      title: "🍃 Common Route Explorer"
-      description: "Your travel is just getting started. You're in the common route, but soon things will open up as you grow! 🍃"
-    - points: 600
-      title: "🌿 Route Navigator"
-      description: "You're beginning to understand relationships and making the right choices! 🌿"
-    - points: 1200
-      title: "🌸 Love Pursuer"
-      description: "Your relationships are blooming, soon common dialogue patterns will no longer have any secrets for you! 🌸"
-    - points: 4200
-      title: "🌺 Garden Keeper"
-      description: "You've gone through several routes and can now grasp the nuances in different characters! 🌺"
-    - points: 22000
-      title: "💐 Story Enthusiast"
-      description: "You've gone through several works, each one increasing your understanding of the language! 💐"
-    - points: 40000
-      title: "🌳 Narrative Sage"
-      description: "Complex plots and character developments no longer have secrets for you! 🌳"
-    - points: 300000
-      title: "👑 Tale Keeper"
-      description: "With so many works under your belt, you can now read anything you desire! 👑"
-    - points: 600000
-      title: "🌍 Harem Master"
-      description: "You've conquered each world and took everything they had to offer. Few can say the same! 🌍"
+      title: "📖🔥 火種"
+      description: "You’ve sparked your journey into the world of visual novels, where countless stories await your discovery, one character at a time.  🔥"
+    - points: 15000
+      title: "📖🌱 芽生え"
+      description: "Your journey has just begun, and you’re on the common route. Soon, the branches of each story will spread wide as you grow. 🌱"
+    - points: 75000 
+      title: "📖🌊 小川"
+      description: "As you navigate relationships, you’re learning to make choices that shape the flow of your path. 🌊"
+    - points: 250000 
+      title: "📖🌸 花咲"
+      description: "Your relationships are blooming, and the dialogue patterns are no longer a mystery. The petals of understanding are unfolding. 🌸"
+    - points: 500000
+      title: "📖🍃 微風"
+      description: "You’ve explored many routes and now feel the gentle breeze of deeper character nuances, understanding each one more clearly. 🍃"
+    - points: 750000
+      title: "📖🌳 大樹"
+      description: "With each new work, your understanding grows like the branches of a great tree, extending further into the realm of language and storytelling. 🌳"
+    - points: 1000000
+      title: "📖🏔️ 山岳"
+      description: "No longer daunted by complex plots or character arcs, you’ve reached the summit of narrative mastery. The view is breathtaking. 🏔️"
+    - points: 5000000
+      title: "📖🏞️ 清流"
+      description: "Having traversed so many works, the flow of stories now seems effortless, and you can read anything your heart desires. 🏞️"
+    - points: 10000000
+      title: "📖🌅 暁光"
+      description: "You've conquered each world, unraveling every mystery they hold. Few can boast the same achievement. 🌅"
+    - points: 25000000
+      title: "📖🌙 月影"
+      description: "You've unlocked hidden paths and ventured into the most intricate of stories. Not everyone reaches this point. 🌙"
+    - points: 50000000
+      title: "📖⛈️ 嵐"
+      description: "You've weathered the storms of plot twists and heart-wrenching decisions. Very few can stand where you stand now. ⛈️"
+    - points: 100000000
+      title: "📖🌒 日食"
+      description: "Like a shadow over the sun, you've mastered the hidden depths of each tale. Few have seen what you have. 🌒"
+    - points: 250000000
+      title: "📖🌲🌲 永遠の森"
+      description: "Among the towering trees of infinite stories, you've found your way through every maze. The forest is yours to command. 🌲🌲"
+      
 
   Manga:
     - points: 1
-      title: "📖 Panel Student"
-      description: "You took your first steps into the world of mangas. Countless stories are waiting for you, one page at a time! 📖"
-    - points: 150
-      title: "💬 Page Explorer"
-      description: "Page by page, your understanding grows! 💬"
-    - points: 400
-      title: "📑 Chapter Navigator"
-      description: "With each chapter you finish reading, you begin to feel more confident! 📑"
+      title: "🎨🔥 火種"
+      description: "You’ve sparked your journey into the world of manga, where countless stories await your discovery, one page at a time.  🔥"
+    - points: 100
+      title: "🎨🌱 芽生え"
+      description: "You've planted the seeds of understanding, and with each page, your appreciation for the details grows! 🌱"
+    - points: 250
+      title: "🎨🌊 小川"
+      description: "Each panel brings you closer to understanding the flow of manga stories. 🌊"
+    - points: 500
+      title: "🎨🌸 花咲"
+      description: "Petal by petal, your understanding blossoms, one page at a time! 🌸"
     - points: 750
-      title: "📘 Volume Voyager"
-      description: "First you were counting the chapters, now it's entire volumes in no time! 📘"
-    - points: 3000
-      title: "📜 Manga Scholar"
-      description: "You're starting to reach out into more complex narratives, churning through the pages at great speed! 📜"
-    - points: 15000
-      title: "📚 Series Enthusiast"
-      description: "You're no longer afraid to start reading longer series, and you begin to enjoy more intricate plots! 📚"
-    - points: 30000
-      title: "📗 Manga Sage"
-      description: "Even the manga pages loaded with text are no longer a problem for you, and you even enjoy them! 📗"
-    - points: 225000
-      title: "👑 Bubble Keeper"
-      description: "With so many works under your belt, you can now read anything you desire! 👑"
-    - points: 450000
-      title: "🌍 Doujin Master"
-      description: "The world of mangas no longer has any secrets for you, you've explored everything, even the most obscure doujinshis! 🌍"
+      title: "🎨🍃 微風"
+      description: "With each chapter you finish, the winds of confidence carry you further! 🍃"
+    - points: 1000
+      title: "🎨🌳 大樹"
+      description: "At first, you counted the chapters like leaves on a branch, now whole volumes grow effortlessly in your hands! 🌳"
+    - points: 1500
+      title: "🎨🏔️ 山岳"
+      description: "Your journey through manga is reaching new peaks, and you're starting to explore a wide range of genres! 🏔️"
+    - points: 2000
+      title: "🎨🏞️ 清流"
+      description: "Like a rushing mountain stream, you're flowing through more complex narratives, turning pages at great speed! 🏞️"
+    - points: 5000
+      title: "🎨🌅 暁光"
+      description: "With each new chapter, the light of understanding breaks through, and you’re mastering even the most intricate plotlines! 🌅"
+    - points: 10000
+      title: "🎨🌙 月影"
+      description: "Like the moon growing fuller with each phase, you're embracing longer series and the intricate plots they bring! 🌙"
+    - points: 20000
+      title: "🎨⛈️ 嵐"
+      description: "Like a storm clearing the skies, you're now able to navigate pages full of text with ease and even enjoy the challenge! ⛈️"
+    - points: 50000
+      title: "🎨🌒 日食"
+      description: "With so many works under your belt, nothing can eclipse your ability to read anything you desire! 🌒"
+    - points: 100000
+      title: "🎨🌲🌲 永遠の森"
+      description: "The world of manga is now an open forest to you, with every path explored, even the most hidden doujinshis! 🌲🌲"
 
   Anime:
     - points: 1
-      title: "📼 Episode Student"
-      description: "You took your first steps into the world of anime. Countless stories are waiting for you, one episode at a time! 📼"
-    - points: 400
-      title: "📺 Series Explorer"
-      description: "You've finished your first series and getting used to speech! 📺"
+      title: "🎥🔥 火種"
+      description: "You’ve ignited your journey into the world of anime, with countless stories waiting to burn brightly, one episode at a time! 🔥"
+    - points: 6
+      title: "🎥🌱 芽生え"
+      description: "Your anime journey has sprouted. Let each episode bring you closer to your goals! 🌱"
+    - points: 12
+      title: "🎥🌊 小川"
+      description: "You've gathered a collection of episodes, each one flowing seamlessly into your mind. 🌊"
+    - points: 24
+      title: "🎥🌸 花咲"
+      description: "You're blooming into anime, understanding the rhythm of dialogue and the richness of the art form. 🌸"
+    - points: 50
+      title: "🎥🍃 微風"
+      description: "You’ve explored many routes and now feel the gentle breeze of deeper character nuances, understanding each one more clearly. 🍃"
+    - points: 75
+      title: "🎥🌳 大樹"
+      description: "As you explore different anime, you're branching out and becoming familiar with all the tropes! 🌳"
+    - points: 100
+      title: "🎥🏔️ 山岳"
+      description: "You've reached the summit of slice of life, and now its flow feels as natural as a mountain breeze! 🏔️"
+    - points: 125
+      title: "🎥🏞️ 清流"
+      description: "Like a mountain stream carving new paths, you're seeking out more complex genres to explore! 🏞️"
     - points: 1000
-      title: "🎬 Anime Navigator"
-      description: "Watching through different anime, you're getting familiar with the many tropes! 🎬"
-    - points: 2000
-      title: "🗨️ SOL Specialist"
-      description: "You've grasped all the secrets of slice of life, listening to it feels natural! 🗨️"
-    - points: 4000
-      title: "🌸 Genre Bloomer"
-      description: "You're beginning to seek new, more complex genres to get into! 🌸"
-    - points: 20000
-      title: "🍙 Trope Enthusiast"
-      description: "You can tell what each archetype of character is by the way they talk! 🍙"
-    - points: 40000
-      title: "🐉 Animation Sage"
-      description: "The images flow into your brain endlessly, you're not afraid to tackle even the hardest of animes. 🐉"
-    - points: 200000
-      title: "👑 Sakuga Keeper"
-      description: "You've long forsaken subtitles, instead, the animation speaks to you directly! 👑"
-    - points: 400000
-      title: "🌍 Otaku Master"
-      description: "You've seen it all, yet you constantly seek new thrills. Your knowledge is infinite, share it wisely! 🌍"
+      title: "🎥🌅 暁光"
+      description: "As the sun rises on your understanding, you’ve uncovered the cultural roots behind anime, gaining a deeper appreciation for Japanese traditions and storytelling. 🌅"
+    - points: 5000
+      title: "🎥🌙 月影"
+      description: "Like the moon growing fuller with each phase, you're embracing longer series and the intricate plots they bring! 🌙"
+    - points: 10000
+      title: "🎥⛈️ 嵐"
+      description: "The images crash into your mind like a storm, and you're fearless, even with the fiercest of anime! ⛈️"
+    - points: 25000
+      title: "🎥🌒 日食"
+      description: "You've long forsaken the light of the sun, the animation burns brightly in your soul! 🌒"
+    - points: 50000 
+      title: "🎥🌲🌲 永遠の森"
+      description: "You've seen it all, yet you constantly seek new thrills. Your knowledge of the forest is infinite, share it wisely! 🌲🌲"
 
   Listening:
     - points: 1
-      title: "🎵 Mora Student"
-      description: "You took your first steps into the world of listening, your ears are just getting warmed up! 🎵"
-    - points: 400
-      title: "🎶 Dialogue Explorer"
-      description: "With a few videos under your belt, you're starting to recognize patterns! 🎶"
-    - points: 1000
-      title: "🎼 Audio Navigator"
-      description: "You're getting familiar with the language, distinguishing each syllabes clearly. 🎼"
+      title: "🎧🔥 火種"
+      description: "You took your first steps into the world of listening, your ears are just getting warmed up! 🔥"
+    - points: 50
+      title: "🎧🌱 芽生え"
+      description: "You’ve started recognizing sounds and are beginning to plant the seeds of understanding. 🌱"
+    - points: 200
+      title: "🎧🌊 小川"
+      description: "Like a calm river, sounds are flowing easily for you. 🌊"
+    - points: 700
+      title: "🎧🌸 花咲"
+      description: "Speech patterns are blooming around you, like a vibrant field of flowers. 🌸"
+    - points: 1500
+      title: "🎧🍃 微風"
+      description: "Your ability to follow along with native speech is improving. Conversations are becoming a breeze! 🍃"
     - points: 2000
-      title: "🈁 Word Seeker"
-      description: "You begin to understand many words without having to look at subtitles! 🈁"
-    - points: 4000
-      title: "💬 Speech Specialist"
-      description: "You begin to understand natural spoken language with little efforts! 💬"
-    - points: 20000
-      title: "🎤 Dialect Enthusiast"
-      description: "The Tokyo dialect has no secrets for you, and you're exploring the other dialects! 🎤"
-    - points: 40000
-      title: "🗫 Conversation Sage"
-      description: "You can understand conversations between several natives with ease! 🗫"
-    - points: 200000
-      title: "👑 Sound Keeper"
-      description: "You've long forsaken subtitles, listening to Japanese feels like second nature to you! 👑"
-    - points: 400000
-      title: "🌍 Listening Master"
-      description: "You've achieved perfect harmony with the Japanese language. Even the fastest speaker can't throw you off! 🌍"
+      title: "🎧🌳 大樹"
+      description: "You've rooted yourself in language, each syllable branching out clearly in your mind. 🌳"
+    - points: 3000
+      title: "🎧🏔️ 山岳"
+      description: "You've scaled the peaks of conversation, navigating even the tallest hurdles with ease. 🏔️"
+    - points: 15000
+      title: "🎧🏞️ 清流"
+      description: "You've reached new heights in understanding, conquering the fast-paced flow of natural conversations. 🏞️"
+    - points: 30000
+      title: "🎧🌅 暁光"
+      description: "The dawn of understanding has arrived. Natural spoken language feels as clear as the morning light! 🌅"
+    - points: 75000
+      title: "🎧🌙 月影"
+      description: "Your understanding has risen like the full moon. 🌙"
+    - points: 150000
+      title: "🎧⛈️ 嵐"
+      description: "You can weather any conversation, even when multiple natives are speaking at once. ⛈️"
+    - points: 300000
+      title: "🎧🌒 日食"
+      description: "You've long forsaken subtitles, and now the language shines in full view. Nothing can eclipse your understanding! 🌑"
+    - points: 750000
+      title: "🎧🌲🌲 永遠の森"
+      description: "You've achieved perfect harmony with the forest. Even the fastest speaker can't throw you off! 🌲🌲"
 
   Reading:
     - points: 1
-      title: "🈴 Moji Student"
-      description: "You took your first steps into the world of reading. Countless stories are waiting for you, one character at a time! 🈴"
-    - points: 120
-      title: "🔍 Page Explorer"
-      description: "With each page you read, your understanding grows! 🔍"
-    - points: 300
-      title: "📰 Chapter Explorer"
-      description: "You've finished multiple chapters and begin to follow along the narrative! 📰"
-    - points: 600
-      title: "📘 Volume Voyager"
-      description: "You've finished your first book and already starting your next! 📘"
+      title: "📚🔥 火種"
+      description: "You’ve sparked your journey into the world of manga, where countless stories await your discovery, one page at a time.  🔥"
+    - points: 50
+      title: "📚🌱 芽生え"
+      description: "Your journey has just begun, and you’re on the common route. Soon, the branches of each story will spread wide as you grow. 🌱"
+    - points: 200
+      title: "📚🌊 小川"
+      description: "As you navigate relationships, you’re learning to make choices that shape the flow of your path. 🌊"
+    - points: 700
+      title: "📚🌸 花咲"
+      description: "Your relationships are blooming, and the dialogue patterns are no longer a mystery. The petals of understanding are unfolding. 🌸"
+    - points: 1500
+      title: "📚🍃 微風"
+      description: "You’ve explored many routes and now feel the gentle breeze of deeper character nuances, understanding each one more clearly. 🍃"
     - points: 2000
-      title: "📚 SOL Specialist"
-      description: "Reading Slice of Life feels natural to you, and you begin to explore new, more complex genres! 📚"
-    - points: 10000
-      title: "📜 Story Enthusiast"
-      description: "With each new author you read, your mastery of the language grows! 📜"
-    - points: 20000
-      title: "📕 Literary Sage"
-      description: "Your literary skills are wide, and you're no longer afraid of more complex novels! 📕"
+      title: "📚🌳 大樹"
+      description: "With each new work, your understanding grows like the branches of a great tree, extending further into the realm of language and storytelling. 🌳"
+    - points: 3000
+      title: "📚🏔️ 山岳"
+      description: "No longer daunted by complex plots or character arcs, you’ve reached the summit of narrative mastery. The view is breathtaking. 🏔️"
+    - points: 15000
+      title: "📚🏞️ 清流"
+      description: "Having traversed so many works, the flow of stories now seems effortless, and you can read anything your heart desires. 🏞️"
+    - points: 30000
+      title: "📚🌅 暁光"
+      description: "You've conquered each world, unraveling every mystery they hold. Few can boast the same achievement. 🌅"
+    - points: 75000
+      title: "📚🌙 月影"
+      description: "You've unlocked hidden paths and ventured into the most intricate of stories. Not everyone reaches this point. 🌙"
+    - points: 150000
+      title: "📚⛈️ 嵐"
+      description: "You've weathered the storms of plot twists and heart-wrenching decisions. Very few can stand where you stand now. ⛈️"
     - points: 300000
-      title: "👑 Script Keeper"
-      description: "You're reading like a native, you can enjoy even the most intricate storylines! 👑"
-    - points: 600000
-      title: "🌍 Novel Master"
-      description: "You're reading ancient japanese scrolls for fun, share your kanji knowledge with the world! 🌍"
+      title: "📚🌒 日食"
+      description: "Like a shadow over the sun, you've mastered the hidden depths of each tale. Few have seen what you have. 🌑"
+    - points: 750000
+      title: "📚🌲🌲 永遠の森"
+      description: "Among the towering trees of infinite stories, you've found your way through every maze. The forest is yours to command. 🌲🌲"
+
+  Gaming:
+    - points: 1
+      title: "🎮🔥 火種"
+      description: "You’ve sparked your journey into the world of manga, where countless stories await your discovery, one page at a time.  🔥"
+    - points: 50
+      title: "🎮🌱 芽生え"
+      description: "Your journey has just begun, and you’re on the common route. Soon, the branches of each story will spread wide as you grow. 🌱"
+    - points: 200
+      title: "🎮🌊 小川"
+      description: "As you navigate relationships, you’re learning to make choices that shape the flow of your path. 🌊"
+    - points: 700
+      title: "🎮🌸 花咲"
+      description: "Your relationships are blooming, and the dialogue patterns are no longer a mystery. The petals of understanding are unfolding. 🌸"
+    - points: 1500
+      title: "🎮🍃 微風"
+      description: "You’ve explored many routes and now feel the gentle breeze of deeper character nuances, understanding each one more clearly. 🍃"
+    - points: 2000
+      title: "🎮🌳 大樹"
+      description: "With each new work, your understanding grows like the branches of a great tree, extending further into the realm of language and storytelling. 🌳"
+    - points: 3000
+      title: "🎮🏔️ 山岳"
+      description: "No longer daunted by complex plots or character arcs, you’ve reached the summit of narrative mastery. The view is breathtaking. 🏔️"
+    - points: 15000
+      title: "🎮🏞️ 清流"
+      description: "Having traversed so many works, the flow of stories now seems effortless, and you can read anything your heart desires. 🏞️"
+    - points: 30000
+      title: "🎮🌅 暁光"
+      description: "You've conquered each world, unraveling every mystery they hold. Few can boast the same achievement. 🌅"
+    - points: 75000
+      title: "🎮🌙 月影"
+      description: "You've unlocked hidden paths and ventured into the most intricate of stories. Not everyone reaches this point. 🌙"
+    - points: 150000
+      title: "🎮⛈️ 嵐"
+      description: "You've weathered the storms of plot twists and heart-wrenching decisions. Very few can stand where you stand now. ⛈️"
+    - points: 300000
+      title: "🎮🌒 日食"
+      description: "Like a shadow over the sun, you've mastered the hidden depths of each tale. Few have seen what you have. 🌑"
+    - points: 750000
+      title: "🎮🌲🌲 永遠の森"
+      description: "Among the towering trees of infinite stories, you've found your way through every maze. The forest is yours to command. 🌲🌲"
+
+
