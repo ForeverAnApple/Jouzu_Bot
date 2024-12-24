@@ -231,8 +231,6 @@ class ImmersionLogMe(commands.Cog):
     )
     @discord.app_commands.choices(immersion_type=LOG_CHOICES)
     async def log_stats(self, interaction: discord.Interaction, user: Optional[discord.User] = None, from_date: Optional[str] = None, to_date: Optional[str] = None, immersion_type: Optional[str] = None):
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
         await interaction.response.defer()
 
         user_id = user.id if user else interaction.user.id
