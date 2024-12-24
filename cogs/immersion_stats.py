@@ -19,7 +19,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 GET_USER_LOGS_FOR_PERIOD_QUERY_BASE = """
-    SELECT media_type, amount_logged, points_received, log_date
+    SELECT media_type, amount_logged, time_logged, log_date
     FROM logs
     WHERE user_id = ? AND log_date BETWEEN ? AND ?
 """
@@ -44,15 +44,15 @@ def modify_cmap(cmap_name, zero_color="black", nan_color="black", truncate_high=
 
 
 def embedded_info(df: pd.DataFrame) -> tuple:
-    points_total = df['points_received'].sum()
-    breakdown = df.groupby('media_type').agg({'amount_logged': 'sum', 'points_received': 'sum'}).reset_index()
+    time_total = df['time_logged'].sum()
+    breakdown = df.groupby('media_type').agg({'amount_logged': 'sum', 'time_logged': 'sum'}).reset_index()
     breakdown['unit_name'] = breakdown['media_type'].apply(lambda x: MEDIA_TYPES[x]['unit_name'])
     breakdown_str = "\n".join([
-        f"{row['media_type']}: {row['amount_logged']} {row['unit_name']}{'s' if row['amount_logged'] > 1 else ''} → {round(row['points_received'], 2)} pts"
+        f"{row['media_type']}: {row['amount_logged']} {row['unit_name']}{'s' if row['amount_logged'] > 1 else ''} → {round(row['time_logged'], 2)} minutes"
         for _, row in breakdown.iterrows()
     ])
 
-    return breakdown_str, points_total
+    return breakdown_str, time_total
 
 
 def set_plot_styles():
@@ -77,7 +77,7 @@ def process_bar_data(df: pd.DataFrame, from_date: datetime, to_date: datetime, i
     if immersion_type:
         bar_df = bar_df.pivot_table(index=bar_df.index.date, columns='media_type', values='amount_logged', aggfunc='sum', fill_value=0)
     else:
-        bar_df = bar_df.pivot_table(index=bar_df.index.date, columns='media_type', values='points_received', aggfunc='sum', fill_value=0)
+        bar_df = bar_df.pivot_table(index=bar_df.index.date, columns='media_type', values='time_logged', aggfunc='sum', fill_value=0)
     bar_df.index = pd.DatetimeIndex(bar_df.index)
 
     time_frame = pd.date_range(bar_df.index.date.min(), to_date, freq='D')
@@ -118,7 +118,7 @@ def process_heatmap_data(df: pd.DataFrame, from_date: datetime, to_date: datetim
     for year, group in df.groupby("year"):
         year_begins_on = group.index.date.min().weekday()
         group["week"] = (group.index.dayofyear + year_begins_on - 1) // 7
-        year_data = group.pivot_table(index="day", columns="week", values="points_received", aggfunc="sum", fill_value=np.nan)
+        year_data = group.pivot_table(index="day", columns="week", values="time_logged", aggfunc="sum", fill_value=np.nan)
 
         heatmap_data[year] = year_data
 
@@ -135,8 +135,8 @@ def generate_bar_chart(df: pd.DataFrame, from_date: datetime, to_date: datetime,
     fig, ax = plt.subplots(figsize=(16, 12))
     fig.patch.set_facecolor('#2c2c2d')
     df_plot.plot(kind='bar', stacked=True, ax=ax, color=[MEDIA_TYPES[col].get('color', 'gray') for col in df_plot.columns])
-    ax.set_title('Points Over Time' if not immersion_type else f"{MEDIA_TYPES[immersion_type]['log_name']} Over Time")
-    ax.set_ylabel('Points' if not immersion_type else MEDIA_TYPES[immersion_type]['unit_name'] + 's')
+    ax.set_title('Total Immersion Time Over Time' if not immersion_type else f"{MEDIA_TYPES[immersion_type]['log_name']} Over Time")
+    ax.set_ylabel('Immersion Time (mins)' if not immersion_type else MEDIA_TYPES[immersion_type]['unit_name'] + 's')
     ax.set_xlabel('Date' + x_lab)
     ax.set_xticklabels(date_labels, rotation=45, ha='right')
     ax.grid(color='#8b8c8c', axis='y')
@@ -234,7 +234,8 @@ class ImmersionLogMe(commands.Cog):
         await interaction.response.defer()
 
         user_id = user.id if user else interaction.user.id
-        user_name = await get_username_db(self.bot, user_id)
+        guild_id = interaction.guild_id
+        nick_name, user_name = await get_username_db(self.bot, guild_id, interaction.user)
 
         try:
             if from_date:
@@ -254,7 +255,7 @@ class ImmersionLogMe(commands.Cog):
             return await interaction.followup.send("Invalid to_date format. Please use YYYY-MM-DD.", ephemeral=True)
 
         user_logs = await self.get_user_logs(user_id, start_of_year, to_date, immersion_type)
-        logs_df = pd.DataFrame(user_logs, columns=['media_type', 'amount_logged', 'points_received', 'log_date'])
+        logs_df = pd.DataFrame(user_logs, columns=['media_type', 'amount_logged', 'time_logged', 'log_date'])
         logs_df['log_date'] = pd.to_datetime(logs_df['log_date'])
         logs_df = logs_df.set_index('log_date')
 
@@ -263,13 +264,13 @@ class ImmersionLogMe(commands.Cog):
         figure_buffer_bar = await asyncio.to_thread(generate_bar_chart, logs_df, from_date, to_date, immersion_type)
         figure_buffer_heatmap = await asyncio.to_thread(generate_heatmap, logs_df, from_date, to_date, immersion_type)
 
-        breakdown_str, points_total = await asyncio.to_thread(embedded_info, logs_df[from_date:to_date])
+        breakdown_str, time_total = await asyncio.to_thread(embedded_info, logs_df[from_date:to_date])
         timeframe_str = f"{from_date.strftime('%Y-%m-%d')} to {to_date.strftime('%Y-%m-%d')}"
 
         embed = discord.Embed(title="Immersion Overview", color=discord.Color.blurple())
-        embed.add_field(name="User", value=user_name, inline=True)
+        embed.add_field(name="User", value=nick_name, inline=True)
         embed.add_field(name="Timeframe", value=timeframe_str, inline=True)
-        embed.add_field(name="Points", value=f"{points_total:.2f}", inline=True)
+        embed.add_field(name="Immersion Time", value=f"{time_total:.2f} minutes", inline=True)
         if immersion_type:
             embed.add_field(name="Immersion Type", value=immersion_type.capitalize(), inline=True)
         embed.add_field(name="Breakdown", value=breakdown_str, inline=False)

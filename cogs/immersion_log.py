@@ -569,19 +569,19 @@ class ImmersionLog(commands.Cog):
         description = ""
 
         if leaderboard_data:
-            for rank, (user_id, total_points, total_logged) in enumerate(leaderboard_data, start=1):
+            for rank, (user_id, total_time, total_logged) in enumerate(leaderboard_data, start=1):
                 (_, user_name) = await get_username_db(self.bot, user_id)
-                total_points_humanized = human_readable_number(total_points)
+                total_time_humanized = human_readable_number(total_time)
                 total_logged_humanized = human_readable_number(total_logged)
 
                 if interaction.user.id == user_id:
-                    description += f"**{humanize.ordinal(rank)} (YOU) {user_name}**: **{total_points_humanized} pts**\t"
+                    description += f"**{humanize.ordinal(rank)} (YOU) {user_name}**: **{total_time_humanized} minutes**\t"
                     if unit_name:
                         description += f" | **{total_logged_humanized} {unit_name}s**"
                     description += "\n"
                     user_in_top_20 = True
                 else:
-                    description += f"**{humanize.ordinal(rank)} {user_name}**: {total_points_humanized} pts \t"
+                    description += f"**{humanize.ordinal(rank)} {user_name}**: {total_time_humanized} pts \t"
                     if unit_name:
                         description += f" | {total_logged_humanized} {unit_name}s"
                     description += "\n"
