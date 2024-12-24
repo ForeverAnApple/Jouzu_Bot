@@ -178,9 +178,6 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
     async def log(self, interaction: discord.Interaction, media_type: str, amount: str, time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
-
         if not amount.isdigit():
             return await interaction.response.send_message("Amount must be a valid number.", ephemeral=True)
         amount = int(amount)
@@ -402,9 +399,6 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.describe(log_entry='Select the log entry you want to undo.')
     @discord.app_commands.autocomplete(log_entry=log_undo_autocomplete)
     async def log_undo(self, interaction: discord.Interaction, log_entry: str):
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
-
         if not log_entry.isdigit():
             return await interaction.response.send_message("Invalid log entry selected.", ephemeral=True)
 
@@ -438,23 +432,26 @@ class ImmersionLog(commands.Cog):
 
     @discord.app_commands.command(name='log_achievements', description='Display all your achievements!')
     async def log_achievements(self, interaction: discord.Interaction):
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
-
         user_id = interaction.user.id
         achievements_list = []
+        achievements_set = set(settings_group['Achievement_Group'] for settings_group in MEDIA_TYPES.values())
+        achievements_set.add('Immersion')
+        # print(f'achievements_set include: {achievements_set}')
 
-        for achievement_group in set(settings_group['Achievement_Group'] for settings_group in MEDIA_TYPES.values()):
+        for achievement_group in achievements_set:
             total_points = await self.get_total_units_for_achievement_group(user_id, achievement_group)
+            if achievement_group == 'Immersion':
+                total_points = await self.get_total_time_for_user(user_id)
             if total_points <= 0:
                 continue
+            unit_name='minute' if achievement_group == 'Immersion' else MEDIA_TYPES[achievement_group]['unit_name']
             achievements_list.append(f"\n**-----{achievement_group.upper()}-----**\n")
             current_achievement, next_achievement = await get_current_and_next_achievement(achievement_group, total_points)
             if current_achievement:
-                current_achievement_info = f"**Reached {current_achievement['title']} (`{current_achievement['points']}` points)**"
+                current_achievement_info = f"**Reached {current_achievement['title']} (`{current_achievement['points']}` {unit_name}s)**"
                 current_achievement_info += f"`\n{current_achievement['description']}`"
             if next_achievement:
-                next_achievement_info = f"\n➤ Next: {next_achievement['title']} (`{int(total_points)}/{next_achievement['points']}` points)"
+                next_achievement_info = f"\n➤ Next: {next_achievement['title']} (`{int(total_points)}/{next_achievement['points']}` {unit_name}s)"
 
             if current_achievement:
                 achievements_list.append(current_achievement_info)
@@ -474,9 +471,6 @@ class ImmersionLog(commands.Cog):
     async def log_export(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         await interaction.response.send_message("Log exports are disabled at the moment.")
         return
-
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
 
         user_id = user.id if user else interaction.user.id
         user_logs = await self.bot.GET(GET_USER_LOGS_FOR_EXPORT_QUERY, (user_id,))
@@ -509,9 +503,6 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.command(name='logs', description='Output your immersion logs as a text file!')
     @discord.app_commands.describe(user='The user to export logs for (optional)')
     async def logs(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
-
         await interaction.response.defer()
         user_id = user.id if user else interaction.user.id
         user_logs = await self.bot.GET(GET_USER_LOGS_FOR_EXPORT_QUERY, (user_id,))
@@ -542,11 +533,7 @@ class ImmersionLog(commands.Cog):
                                    month='Optionally specify the month in YYYY-MM format or select all with "ALL".')
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     async def log_leaderboard(self, interaction: discord.Interaction, media_type: Optional[str] = None, month: Optional[str] = None):
-        await interaction.response.send_message("Log leaderboards are disabled at the moment.")
-        return
-
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
+        return await interaction.response.send_message("Log leaderboards are disabled at the moment.")
 
         await interaction.response.defer()
 
