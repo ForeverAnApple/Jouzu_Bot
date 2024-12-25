@@ -34,6 +34,7 @@ class TMWBot(commands.Bot):
         
         cogs_whitelist = {
             "sync",
+            "info",
             "username_fetcher",
             "immersion_log",
             "immersion_goals",
