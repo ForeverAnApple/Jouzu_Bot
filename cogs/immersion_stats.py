@@ -233,9 +233,10 @@ class ImmersionLogMe(commands.Cog):
     async def log_stats(self, interaction: discord.Interaction, user: Optional[discord.User] = None, from_date: Optional[str] = None, to_date: Optional[str] = None, immersion_type: Optional[str] = None):
         await interaction.response.defer()
 
-        user_id = user.id if user else interaction.user.id
+        member = user if user else interaction.user
+        user_id = member.id
         guild_id = interaction.guild_id
-        nick_name, user_name = await get_username_db(self.bot, guild_id, interaction.user)
+        nick_name, user_name = await get_username_db(self.bot, guild_id, member)
 
         try:
             if from_date:
@@ -268,7 +269,7 @@ class ImmersionLogMe(commands.Cog):
         timeframe_str = f"{from_date.strftime('%Y-%m-%d')} to {to_date.strftime('%Y-%m-%d')}"
 
         embed = discord.Embed(title="Immersion Overview", color=discord.Color.blurple())
-        embed.add_field(name="User", value=nick_name, inline=True)
+        embed.add_field(name="User", value=nick_name if nick_name else user_name, inline=True)
         embed.add_field(name="Timeframe", value=timeframe_str, inline=True)
         embed.add_field(name="Immersion Time", value=f"{time_total:.2f} minutes", inline=True)
         if immersion_type:
