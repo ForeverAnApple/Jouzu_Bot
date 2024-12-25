@@ -1,6 +1,6 @@
 services:
   tmw-bot:
-    image: discord-tmw-bot
+    image: discord-jouzu-bot
     environment:
       - TOKEN
       - AUTHORIZED_USERS
