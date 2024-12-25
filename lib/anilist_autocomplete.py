@@ -126,7 +126,8 @@ WHERE anilist_id = ?;
 async def query_anilist(interaction: discord.Interaction, current_input: str, bot: TMWBot):
     url = "https://graphql.anilist.co"
 
-    media_type = interaction.namespace['media_type'].upper()
+    media_type = interaction.namespace['media_type']
+    media_type = "MANGA" if media_type == 'Reading' or media_type == 'Reading Time' else media_type.upper()
     if current_input.isdigit():
         query = ANILIST_ID_QUERY
         variables = {
@@ -177,7 +178,8 @@ async def anime_manga_name_autocomplete(interaction: discord.Interaction, curren
     tmw_bot = interaction.client
     tmw_bot: TMWBot
 
-    media_type = interaction.namespace['media_type'].upper()
+    media_type = interaction.namespace['media_type']
+    media_type = "MANGA" if media_type == 'Reading' or media_type == 'Reading Time' else media_type.upper()
 
     if current_input.isdigit():
         cached_result = await tmw_bot.GET_ONE(CACHED_ANILIST_RESULTS_BY_ID_QUERY, (int(current_input), media_type))
