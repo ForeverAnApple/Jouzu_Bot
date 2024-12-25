@@ -12,7 +12,7 @@ from typing import Optional
 from datetime import datetime
 import asyncio
 from lib.media_types import MEDIA_TYPES, LOG_CHOICES
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 from lib.immersion_helpers import is_valid_channel
 from .username_fetcher import get_username_db
 import matplotlib
@@ -208,7 +208,7 @@ def generate_heatmap(df: pd.DataFrame, from_date: datetime, to_date: datetime, i
 
 
 class ImmersionLogMe(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
 
     async def get_user_logs(self, user_id, from_date, to_date, immersion_type=None):

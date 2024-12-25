@@ -1,6 +1,6 @@
 # Jouzu Gumi Discord Bot
 
-Multi-purpose Discord bot developed for the Jouzu Gumi Discord server. The bot is designed to be modular and easy to extend with new features.
+Multi-purpose Discord bot developed for the Jouzu Gumi Discord server. The bot is designed to be modular and easy to extend with new features and is largely based off of [TMW_Bot](https://github.com/friedrich-de/TMW_Bot).
 
 
 ## Features/Commands
@@ -112,11 +112,13 @@ You can link to alternative setting files by setting the path in the correspondi
 Each part of the bot can be configured separately. Please look into the cog files for the variable names.
 
 ## Acknowledgements
-This bot's base code is largely based on TMW_bot! With some slight modifications to fit Jouzu Gumi's server needs and learning philosophies.
+This bot's base code is largely based on TMW_bot, many thanks to the TMW community for their contribution towards the JP learning communities.
+
+This bot contains modifications to fit Jouzu Gumi's server needs and learning philosophies.
 - **TMW_Bot** - Licensed under the GPL-3.0 license.
   - Original source: [https://github.com/friedrich-de/TMW_Bot](https://github.com/friedrich-de/TMW_Bot)
 
-This bot is based on the following project (mostly used as a feature reference without or minimal direct code reuse):
+TMW_Bot is based on the following projects:
 
 - **DJT-Discord Bot** - Unlicensed (Corresponding code in this project is licensed under the GPL-3.0 license).
   - Original source: [https://github.com/friedrich-de/DJT-Discord-Bot](https://github.com/friedrich-de/DJT-Discord-Bot)

@@ -1,4 +1,4 @@
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 from lib.anilist_autocomplete import CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY, CACHED_ANILIST_THUMBNAIL_QUERY, CACHED_ANILIST_TITLE_QUERY, CREATE_ANILIST_FTS5_TABLE_QUERY, CREATE_ANILIST_TRIGGER_DELETE, CREATE_ANILIST_TRIGGER_INSERT, CREATE_ANILIST_TRIGGER_UPDATE
 from lib.vndb_autocomplete import CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY, CACHED_VNDB_THUMBNAIL_QUERY, CACHED_VNDB_TITLE_QUERY, CREATE_VNDB_FTS5_TABLE_QUERY, CREATE_VNDB_TRIGGER_DELETE, CREATE_VNDB_TRIGGER_INSERT, CREATE_VNDB_TRIGGER_UPDATE
 from lib.tmdb_autocomplete import CACHED_TMDB_RESULTS_CREATE_TABLE_QUERY, CACHED_TMDB_THUMBNAIL_QUERY, CACHED_TMDB_TITLE_QUERY, CREATE_TMDB_FTS5_TABLE_QUERY, CREATE_TMDB_TRIGGER_DELETE, CREATE_TMDB_TRIGGER_INSERT, CREATE_TMDB_TRIGGER_UPDATE, CACHED_TMDB_GET_MEDIA_TYPE_QUERY
@@ -115,10 +115,10 @@ GET_USER_MONTHLY_TIME_FOR_GROUP_QUERY = """
 async def log_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
 
-    tmw_bot = interaction.client
-    tmw_bot: TMWBot
+    jouzu_bot = interaction.client
+    jouzu_bot: JouzuBot
 
-    user_logs = await tmw_bot.GET(GET_USER_LOGS_QUERY, (interaction.user.id,))
+    user_logs = await jouzu_bot.GET(GET_USER_LOGS_QUERY, (interaction.user.id,))
     choices = []
 
     for log_id, media_type, media_name, amount_logged, log_date in user_logs:
@@ -145,7 +145,7 @@ async def log_name_autocomplete(interaction: discord.Interaction, current_input:
 
 
 class ImmersionLog(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
 
     async def cog_load(self):

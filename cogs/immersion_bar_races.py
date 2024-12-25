@@ -12,7 +12,7 @@ import os
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 from lib.media_types import LOG_CHOICES, MEDIA_TYPES
 from lib.immersion_helpers import is_valid_channel
 from .username_fetcher import get_username_db
@@ -33,7 +33,7 @@ def admin_cooldown(interaction: discord.Interaction) -> Optional[discord.app_com
 
 
 class ImmersionBarRaces(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
         self.set_fonts()
 

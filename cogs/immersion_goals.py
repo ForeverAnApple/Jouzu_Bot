@@ -3,7 +3,7 @@ import discord
 import copy
 from discord.ext import commands
 
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 from lib.media_types import LOG_CHOICES, MEDIA_TYPES
 
 from lib.immersion_helpers import is_valid_channel
@@ -88,9 +88,9 @@ GOAL_CHOICES.append(discord.app_commands.Choice(name="General Immersion (mins)",
 
 async def goal_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
-    tmw_bot = interaction.client
-    tmw_bot: TMWBot
-    user_goals = await tmw_bot.GET(GET_USER_GOALS_QUERY, (interaction.user.id,))
+    jouzu_bot = interaction.client
+    jouzu_bot: JouzuBot
+    user_goals = await jouzu_bot.GET(GET_USER_GOALS_QUERY, (interaction.user.id,))
     choices = []
 
     for goal_id, media_type, goal_type, goal_value, end_date in user_goals:
@@ -102,7 +102,7 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
 
     return choices[:10]
 
-async def check_immersion_goal_status(bot: TMWBot, user_id: int):
+async def check_immersion_goal_status(bot: JouzuBot, user_id: int):
     result = await bot.GET(GET_IMMERSION_GOAL_STATUS_QUERY, (user_id, user_id))
     goal_statuses = []
 
@@ -131,7 +131,7 @@ async def check_immersion_goal_status(bot: TMWBot, user_id: int):
 
     return goal_statuses
 
-async def check_goal_status(bot: TMWBot, user_id: int, media_type: str):
+async def check_goal_status(bot: JouzuBot, user_id: int, media_type: str):
     result = await bot.GET(GET_GOAL_STATUS_QUERY, (user_id, media_type, user_id, media_type, user_id, media_type))
     goal_statuses = []
 
@@ -167,7 +167,7 @@ async def check_goal_status(bot: TMWBot, user_id: int, media_type: str):
 
 
 class GoalsCog(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
 
     async def cog_load(self):

@@ -9,7 +9,7 @@ from discord.ext import commands
 _log = logging.getLogger(__name__)
 
 
-class TMWBot(commands.Bot):
+class JouzuBot(commands.Bot):
     def __init__(self, command_prefix, cog_folder="cogs", path_to_db="data/db.sqlite3"):
 
         super().__init__(command_prefix=command_prefix, intents=discord.Intents.all())

@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 
 CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY = """
 CREATE TABLE IF NOT EXISTS cached_vndb_results (
@@ -82,7 +82,7 @@ WHERE vndb_id = ?;
 """
 
 
-async def query_vndb(interaction: discord.Interaction, current_input: str, bot: TMWBot):
+async def query_vndb(interaction: discord.Interaction, current_input: str, bot: JouzuBot):
     url = "https://api.vndb.org/kana/vn"
 
     if current_input.isdigit():
@@ -133,21 +133,21 @@ async def query_vndb(interaction: discord.Interaction, current_input: str, bot: 
 
 
 async def vn_name_autocomplete(interaction: discord.Interaction, current_input: str):
-    tmw_bot = interaction.client
-    tmw_bot: TMWBot
+    jouzu_bot = interaction.client
+    jouzu_bot: JouzuBot
 
     if current_input.startswith("v") and current_input[1:].isdigit():
         current_input = current_input[1:]
     if current_input.isdigit():
-        cached_result = await tmw_bot.GET_ONE(CACHED_VNDB_RESULTS_BY_ID_QUERY, (f"v{current_input}",))
+        cached_result = await jouzu_bot.GET_ONE(CACHED_VNDB_RESULTS_BY_ID_QUERY, (f"v{current_input}",))
         if cached_result:
             vndb_id, title, _ = cached_result
             choice_name = f"{title[:80]} (ID: {vndb_id}) (Cached)"
             return [discord.app_commands.Choice(name=choice_name, value=str(vndb_id))]
         else:
-            return await query_vndb(interaction, current_input, tmw_bot)
+            return await query_vndb(interaction, current_input, jouzu_bot)
     else:
-        cached_results = await tmw_bot.GET(CACHED_VNDB_RESULTS_SEARCH_QUERY, (current_input,))
+        cached_results = await jouzu_bot.GET(CACHED_VNDB_RESULTS_SEARCH_QUERY, (current_input,))
         choices = []
         for cached_result in cached_results:
             vndb_id, title, _ = cached_result
@@ -155,7 +155,7 @@ async def vn_name_autocomplete(interaction: discord.Interaction, current_input: 
             choices.append(discord.app_commands.Choice(name=choice_name, value=str(vndb_id)))
 
         if len(choices) < 1:
-            vndb_choices = await query_vndb(interaction, current_input, tmw_bot)
+            vndb_choices = await query_vndb(interaction, current_input, jouzu_bot)
             choices.extend(vndb_choices)
 
         return choices[:10]

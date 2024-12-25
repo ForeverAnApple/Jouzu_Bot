@@ -1,5 +1,5 @@
 import asyncio
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 import discord
 from discord.ext import commands
 
@@ -34,7 +34,7 @@ WHERE discord_user_id = ?, guild_id = ?;"""
 FETCH_LOCK = asyncio.Lock()
 
 
-async def get_username_db(bot: TMWBot, guild_id: int, user: discord.User) -> (str, str):
+async def get_username_db(bot: JouzuBot, guild_id: int, user: discord.User) -> (str, str):
     if user:
         await bot.RUN(INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name))
         return (user.nick, user.display_name)
@@ -52,7 +52,7 @@ async def get_username_db(bot: TMWBot, guild_id: int, user: discord.User) -> (st
 
 
 class UsernameFetcher(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
 
     async def cog_load(self):

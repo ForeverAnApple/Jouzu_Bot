@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 
 ANILIST_NAME_QUERY = """
 query ($search: String, $type: MediaType) {
@@ -123,7 +123,7 @@ WHERE anilist_id = ?;
 """
 
 
-async def query_anilist(interaction: discord.Interaction, current_input: str, bot: TMWBot):
+async def query_anilist(interaction: discord.Interaction, current_input: str, bot: JouzuBot):
     url = "https://graphql.anilist.co"
 
     media_type = interaction.namespace['media_type']
@@ -175,14 +175,14 @@ async def query_anilist(interaction: discord.Interaction, current_input: str, bo
 
 
 async def anime_manga_name_autocomplete(interaction: discord.Interaction, current_input: str):
-    tmw_bot = interaction.client
-    tmw_bot: TMWBot
+    jouzu_bot = interaction.client
+    jouzu_bot: JouzuBot
 
     media_type = interaction.namespace['media_type']
     media_type = "MANGA" if media_type == 'Reading' or media_type == 'Reading Time' else media_type.upper()
 
     if current_input.isdigit():
-        cached_result = await tmw_bot.GET_ONE(CACHED_ANILIST_RESULTS_BY_ID_QUERY, (int(current_input), media_type))
+        cached_result = await jouzu_bot.GET_ONE(CACHED_ANILIST_RESULTS_BY_ID_QUERY, (int(current_input), media_type))
         if cached_result:
             anilist_id, title_english, title_native, _ = cached_result
             title = title_english or title_native
@@ -190,9 +190,9 @@ async def anime_manga_name_autocomplete(interaction: discord.Interaction, curren
                 choice_name = f"{title[:80]} (ID: {anilist_id}) (Cached)"
                 return [discord.app_commands.Choice(name=choice_name, value=str(anilist_id))]
         else:
-            return await query_anilist(interaction, current_input, tmw_bot)
+            return await query_anilist(interaction, current_input, jouzu_bot)
     else:
-        cached_results = await tmw_bot.GET(CACHED_ANILIST_RESULTS_SEARCH_QUERY, (current_input, current_input, media_type))
+        cached_results = await jouzu_bot.GET(CACHED_ANILIST_RESULTS_SEARCH_QUERY, (current_input, current_input, media_type))
         choices = []
         for cached_result in cached_results:
             anilist_id, title_english, title_native, _ = cached_result
@@ -202,7 +202,7 @@ async def anime_manga_name_autocomplete(interaction: discord.Interaction, curren
                 choices.append(discord.app_commands.Choice(name=choice_name, value=str(anilist_id)))
 
         if len(choices) < 1:
-            anilist_choices = await query_anilist(interaction, current_input, tmw_bot)
+            anilist_choices = await query_anilist(interaction, current_input, jouzu_bot)
             choices.extend(anilist_choices)
 
         return choices[:10]

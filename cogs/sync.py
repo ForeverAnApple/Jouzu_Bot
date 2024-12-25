@@ -1,4 +1,4 @@
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 import discord
 import os
 from discord.ext import commands
@@ -13,7 +13,7 @@ def is_authorized():
 
 
 class Sync(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
 
     async def cog_load(self):

@@ -4,7 +4,7 @@ import os
 from discord.ext import commands
 from discord.ext import tasks
 
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 
 CACHED_TMDB_RESULTS_CREATE_TABLE_QUERY = """
 CREATE TABLE IF NOT EXISTS cached_tmdb_results (
@@ -90,7 +90,7 @@ WHERE tmdb_id = ?;
 """
 
 
-async def query_tmdb(interaction: discord.Interaction, current_input: str, bot: TMWBot):
+async def query_tmdb(interaction: discord.Interaction, current_input: str, bot: JouzuBot):
     api_key = os.getenv("TMDB_API_KEY")
     if not api_key:
         raise ValueError("TMDB API Key not found in environment variables")
@@ -131,10 +131,10 @@ async def query_tmdb(interaction: discord.Interaction, current_input: str, bot: 
 
 
 async def listening_autocomplete(interaction: discord.Interaction, current_input: str):
-    tmw_bot = interaction.client
-    tmw_bot: TMWBot
+    jouzu_bot = interaction.client
+    jouzu_bot: JouzuBot
 
-    cached_results = await tmw_bot.GET(CACHED_TMDB_RESULTS_SEARCH_QUERY, (current_input, current_input))
+    cached_results = await jouzu_bot.GET(CACHED_TMDB_RESULTS_SEARCH_QUERY, (current_input, current_input))
     choices = []
     for cached_result in cached_results:
         tmdb_id, title, original_title, _, _ = cached_result
@@ -142,7 +142,7 @@ async def listening_autocomplete(interaction: discord.Interaction, current_input
         choices.append(discord.app_commands.Choice(name=choice_name, value=str(tmdb_id)))
 
     if len(choices) < 1:
-        tmdb_choices = await query_tmdb(interaction, current_input, tmw_bot)
+        tmdb_choices = await query_tmdb(interaction, current_input, jouzu_bot)
         choices.extend(tmdb_choices)
 
     return choices[:10]
