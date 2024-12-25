@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 import discord
+import copy
 from discord.ext import commands
 
 from lib.bot import TMWBot
@@ -14,7 +15,7 @@ CREATE_USER_GOALS_TABLE = """
     goal_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     media_type TEXT NOT NULL,
-    goal_type TEXT NOT NULL CHECK(goal_type IN ('points', 'amount')),
+    goal_type TEXT NOT NULL CHECK(goal_type IN ('time', 'amount')),
     goal_value INTEGER NOT NULL,
     end_date TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -39,7 +40,7 @@ DELETE_GOAL_QUERY = """
 GET_GOAL_STATUS_QUERY = """
     SELECT goal_id, goal_type, goal_value, end_date, created_at, 
         CASE
-            WHEN goal_type = 'points' THEN (
+            WHEN goal_type = 'time' THEN (
                 SELECT COALESCE(SUM(time_logged), 0) 
                 FROM logs 
                 WHERE user_id = ? 
@@ -53,8 +54,21 @@ GET_GOAL_STATUS_QUERY = """
                 AND log_date BETWEEN user_goals.created_at AND user_goals.end_date)
         END as progress
     FROM user_goals
-    WHERE user_id = ? 
+    WHERE user_id = ?
+    AND media_type != 'Immersion'
     AND media_type = ?;
+"""
+
+GET_IMMERSION_GOAL_STATUS_QUERY = """
+    SELECT goal_id, goal_type, goal_value, end_date, created_at, 
+       (SELECT COALESCE(SUM(time_logged), 0) 
+        FROM logs 
+        WHERE user_id = ?
+        AND log_date BETWEEN user_goals.created_at AND user_goals.end_date)
+        as progress
+    FROM user_goals
+    WHERE user_id = ?
+    AND media_type = 'Immersion'
 """
 
 GET_EXPIRED_GOALS_QUERY = """
@@ -68,6 +82,9 @@ DELETE_ALL_EXPIRED_GOALS_QUERY = """
     WHERE user_id = ? AND end_date < ?;
 """
 
+GOAL_CHOICES = copy.deepcopy(LOG_CHOICES)
+GOAL_CHOICES.append(discord.app_commands.Choice(name="General Immersion (mins)",
+                                                value="Immersion"))
 
 async def goal_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
@@ -85,6 +102,34 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
 
     return choices[:10]
 
+async def check_immersion_goal_status(bot: TMWBot, user_id: int):
+    result = await bot.GET(GET_IMMERSION_GOAL_STATUS_QUERY, (user_id, user_id))
+    goal_statuses = []
+
+    for goal_id, goal_type, goal_value, end_date, created_at, progress in result:
+        end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        current_time = discord.utils.utcnow()
+        timestamp_end = int(end_date_dt.timestamp())
+        timestamp_created = int(created_at_dt.timestamp())
+
+        # Calculate progress percentage and generate emoji progress bar
+        percentage = min(int((progress / goal_value) * 100), 100)
+        bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
+        bar_empty = "⬜" * (10 - (percentage // 10))
+        progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
+
+        # Create status message based on goal progress
+        if (created_at_dt <= current_time <= end_date_dt) and progress < goal_value:
+            goal_status = f"Goal in progress: `{progress}`/`{goal_value}` minutes for immersion time - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
+        elif progress >= goal_value:
+            goal_status = f"🎉 Congratulations! You've achieved your goal of `{goal_value}` minutes for total immersion time between <t:{timestamp_created}:D> and <t:{timestamp_end}:D>."
+        else:
+            goal_status = f"⚠️ Goal failed: `{progress}`/`{goal_value}` minutes for total immersion time by <t:{timestamp_end}:R>. \n{progress_bar}"
+
+        goal_statuses.append(goal_status)
+
+    return goal_statuses
 
 async def check_goal_status(bot: TMWBot, user_id: int, media_type: str):
     result = await bot.GET(GET_GOAL_STATUS_QUERY, (user_id, media_type, user_id, media_type, user_id, media_type))
@@ -100,7 +145,7 @@ async def check_goal_status(bot: TMWBot, user_id: int, media_type: str):
             unit_name = MEDIA_TYPES[media_type]['unit_name']
             unit_name = f"{unit_name}{'s' if goal_value > 1 else ''}"
         else:
-            unit_name = 'points'
+            unit_name = 'time'
 
         # Calculate progress percentage and generate emoji progress bar
         percentage = min(int((progress / goal_value) * 100), 100)
@@ -131,17 +176,19 @@ class GoalsCog(commands.Cog):
     @discord.app_commands.command(name='log_set_goal', description='Set an immersion goal for yourself!')
     @discord.app_commands.describe(
         media_type='The type of media for which you want to set a goal.',
-        goal_type='The type of goal, either points or amount.',
+        goal_type='The type of goal, either time (mins) or amount.',
         goal_value='The goal value you want to achieve.',
         end_date_or_hours='The date you want to achieve the goal by (YYYY-MM-DD format) or number of hours from now.'
     )
     @discord.app_commands.choices(goal_type=[
-        discord.app_commands.Choice(name='Points', value='points'),
+        discord.app_commands.Choice(name='Time (mins)', value='time'),
         discord.app_commands.Choice(name='Amount', value='amount')],
-        media_type=LOG_CHOICES)
+        media_type=GOAL_CHOICES)
     async def log_set_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, end_date_or_hours: str):
-        if not await is_valid_channel(interaction):
-            return await interaction.response.send_message("You can only use this command in DM or in the log channels.", ephemeral=True)
+        # Make sure that general immersion time goal is not using amount.
+        if media_type == 'Immersion' and goal_type != 'time':
+            return await interaction.response.send_message("General Immersion goals MUST be time based.", ephemeral=True)
+
         try:
             if end_date_or_hours.isdigit():
                 hours = int(end_date_or_hours)
@@ -155,7 +202,7 @@ class GoalsCog(commands.Cog):
 
         await self.bot.RUN(CREATE_GOAL_QUERY, (interaction.user.id, media_type, goal_type, goal_value, end_date_dt.strftime('%Y-%m-%d %H:%M:%S')))
 
-        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'points'
+        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'time'
         timestamp = int(end_date_dt.timestamp())
         embed = discord.Embed(title="Goal Set!", color=discord.Color.green())
         embed.add_field(name="Media Type", value=media_type, inline=True)
@@ -181,7 +228,7 @@ class GoalsCog(commands.Cog):
 
         goal_to_remove = next(goal for goal in user_goals if goal[0] == goal_id)
         goal_type, goal_value, media_type = goal_to_remove[2], goal_to_remove[3], goal_to_remove[1]
-        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'points'
+        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'time'
 
         await self.bot.RUN(DELETE_GOAL_QUERY, (goal_id, interaction.user.id))
         await interaction.response.send_message(f"> {interaction.user.mention} Your `{goal_type}` goal of `{goal_value} {unit_name}{'s' if goal_value > 1 else ''}` for `{media_type}` has been removed.")
@@ -198,16 +245,18 @@ class GoalsCog(commands.Cog):
         embed = discord.Embed(title=f"{member.display_name}'s Goals", color=discord.Color.blue())
         fields_added = 0
 
+        # Immersion Time Goal Status
+        goal_statuses = await check_immersion_goal_status(self.bot, member.id)
+
         for media_type in MEDIA_TYPES.keys():
-            goal_statuses = await check_goal_status(self.bot, member.id, media_type)
-            for i, goal_status in enumerate(goal_statuses):
-                if fields_added < 24:
-                    embed.add_field(name=f"Goal {fields_added + 1}", value=goal_status, inline=False)
-                    fields_added += 1
-                else:
-                    embed.add_field(name="Notice", value="You have reached the maximum number of fields. Please clear some of your goals to view more.", inline=False)
-                    break
-            if fields_added >= 24:
+            goal_statuses += await check_goal_status(self.bot, member.id, media_type)
+
+        for i, goal_status in enumerate(goal_statuses):
+            if fields_added < 24:
+                embed.add_field(name=f"Goal {fields_added + 1}", value=goal_status, inline=False)
+                fields_added += 1
+            else:
+                embed.add_field(name="Notice", value="You have reached the maximum number of fields. Please clear some of your goals to view more.", inline=False)
                 break
 
         await interaction.response.send_message(embed=embed)

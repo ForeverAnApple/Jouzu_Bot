@@ -4,7 +4,7 @@ from lib.vndb_autocomplete import CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY, CACHED
 from lib.tmdb_autocomplete import CACHED_TMDB_RESULTS_CREATE_TABLE_QUERY, CACHED_TMDB_THUMBNAIL_QUERY, CACHED_TMDB_TITLE_QUERY, CREATE_TMDB_FTS5_TABLE_QUERY, CREATE_TMDB_TRIGGER_DELETE, CREATE_TMDB_TRIGGER_INSERT, CREATE_TMDB_TRIGGER_UPDATE, CACHED_TMDB_GET_MEDIA_TYPE_QUERY
 from lib.media_types import MEDIA_TYPES, LOG_CHOICES
 from lib.immersion_helpers import is_valid_channel, get_achievement_reached_info, get_current_and_next_achievement
-from .immersion_goals import check_goal_status
+from .immersion_goals import check_goal_status, check_immersion_goal_status
 from .username_fetcher import get_username_db
 
 import discord
@@ -245,8 +245,9 @@ class ImmersionLog(commands.Cog):
         current_month_time_after = await self.get_time_for_current_month(interaction.user.id)
         current_total_time_after = await self.get_total_time_for_user(interaction.user.id)
 
-        # Check goal specifically for the category
-        goal_statuses = await check_goal_status(self.bot, interaction.user.id, media_type)
+        # Check goals
+        goal_statuses = await check_immersion_goal_status(self.bot, interaction.user.id)
+        goal_statuses += await check_goal_status(self.bot, interaction.user.id, media_type)
 
         # Check achievement for the category
         total_achievement_units_after = total_achievement_units_before + amount
