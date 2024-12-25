@@ -173,7 +173,7 @@ class ImmersionLog(commands.Cog):
         time_mins='How long you immersed for (in minutes)',
         name='You can use VNDB ID/Title for VNs, AniList ID/Titlefor Anime/Manga, TMDB titles for Listening or provide free text.',
         comment='Short comment about your log.',
-        backfill_date='The date for the log, in YYYY-MM-DD format. You can log no more than 7 days into the past.'
+        backfill_date='Not needed for immersion you have completed today. The date for the log, in YYYY-MM-DD format. You can log no more than 7 days into the past.'
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
