@@ -231,23 +231,24 @@ class ImmersionLog(commands.Cog):
         else:
             time_logged = time_mins if time_mins else 0
         achievement_group = MEDIA_TYPES[media_type]['Achievement_Group']
-        total_achievement_units_before = await self.get_total_units_for_achievement_group(interaction.user.id, achievement_group)
+        user = interaction.user
+        total_achievement_units_before = await self.get_total_units_for_achievement_group(user.id, achievement_group)
 
-        current_month_time_before = await self.get_time_for_current_month(interaction.user.id)
-        current_total_time_before = await self.get_total_time_for_user(interaction.user.id)
+        current_month_time_before = await self.get_time_for_current_month(user.id)
+        current_total_time_before = await self.get_total_time_for_user(user.id)
 
         await self.bot.RUN(
             CREATE_LOG_QUERY,
-            (interaction.user.id, media_type, name, comment, amount,
+            (user.id, media_type, name, comment, amount,
              time_logged, log_date, MEDIA_TYPES[media_type]['Achievement_Group'])
         )
 
-        current_month_time_after = await self.get_time_for_current_month(interaction.user.id)
-        current_total_time_after = await self.get_total_time_for_user(interaction.user.id)
+        current_month_time_after = await self.get_time_for_current_month(user.id)
+        current_total_time_after = await self.get_total_time_for_user(user.id)
 
         # Check goals
-        goal_statuses = await check_immersion_goal_status(self.bot, interaction.user.id)
-        goal_statuses += await check_goal_status(self.bot, interaction.user.id, media_type)
+        goal_statuses = await check_immersion_goal_status(self.bot, user.id)
+        goal_statuses += await check_goal_status(self.bot, user.id, media_type)
 
         # Check achievement for the category
         total_achievement_units_after = total_achievement_units_before + amount
@@ -261,7 +262,7 @@ class ImmersionLog(commands.Cog):
         else:
             random_guild_emoji = ""
 
-        consecutive_days = await self.get_consecutive_days_logged(interaction.user.id)
+        consecutive_days = await self.get_consecutive_days_logged(user.id)
         actual_title = await self.get_title(media_type, name)
         thumbnail_url = await self.get_thumbnail_url(media_type, name)
         source_url = await self.get_source_url(media_type, name)
@@ -327,7 +328,7 @@ class ImmersionLog(commands.Cog):
 
         if thumbnail_url:
             log_embed.set_thumbnail(url=thumbnail_url)
-        log_embed.set_footer(text=f"Logged by {interaction.user.display_name} for {log_date.split(' ')[0]}", icon_url=interaction.user.display_avatar.url)
+        log_embed.set_footer(text=f"Logged by {user.display_name} for {log_date.split(' ')[0]}", icon_url=user.display_avatar.url)
 
         logged_message = await interaction.followup.send(embed=log_embed)
 
@@ -339,9 +340,9 @@ class ImmersionLog(commands.Cog):
         # Notify immersion achievements
         achievement_notif_str = ''
         if achievement_reached:
-            achievement_notif_str += f"🎉 **{media_type} Achievement Reached!** 🎉\n\n**{current_achievement['title']}**\n\n{current_achievement['description']}\n"
+            achievement_notif_str += f"🎉 **{media_type} Achievement Reached!** (for {user.display_name}) 🎉\n\n**{current_achievement['title']}**\n\n{current_achievement['description']}\n"
         if immersion_achievement_reached:
-            achievement_notif_str += f"🎉 **Total Immersion Achievement Reached!** 🎉\n\n**{current_immersion_achievement['title']}**\n\n{current_immersion_achievement['description']}"
+            achievement_notif_str += f"🎉 **Total Immersion Achievement Reached!** (for {user.display_name}) 🎉\n\n**{current_immersion_achievement['title']}**\n\n{current_immersion_achievement['description']}"
         if achievement_reached or immersion_achievement_reached:
             await logged_message.reply(achievement_notif_str)
 
@@ -432,8 +433,10 @@ class ImmersionLog(commands.Cog):
         return 0.0
 
     @discord.app_commands.command(name='log_achievements', description='Display all your achievements!')
-    async def log_achievements(self, interaction: discord.Interaction):
-        user_id = interaction.user.id
+    @discord.app_commands.describe(user='The user to view achievements for (optional)')
+    async def log_achievements(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+        member = user or interaction.user
+        user_id = member.id
         achievements_list = []
         achievements_dict = {settings_group['Achievement_Group']: settings_group['unit_name'] for settings_group in MEDIA_TYPES.values()}
         achievements_dict['Immersion'] = 'minute'
@@ -462,7 +465,7 @@ class ImmersionLog(commands.Cog):
         else:
             achievements_str = "No achievements yet. Keep immersing!"
 
-        embed = discord.Embed(title=f"{interaction.user.display_name}'s Achievements",
+        embed = discord.Embed(title=f"{member.display_name}'s Achievements",
                               description=achievements_str, color=discord.Color.gold())
         await interaction.response.send_message(embed=embed)
 
@@ -504,11 +507,12 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.describe(user='The user to export logs for (optional)')
     async def logs(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         await interaction.response.defer()
-        user_id = user.id if user else interaction.user.id
+        member = user or interaction.user
+        user_id = member.id
         user_logs = await self.bot.GET(GET_USER_LOGS_FOR_EXPORT_QUERY, (user_id,))
 
         if not user_logs:
-            return await interaction.followup.send("No logs to export for the specified user.", ephemeral=True)
+            return await interaction.followup.send(f"No logs to export for {member.display_name}.", ephemeral=True)
 
         log_filename = f"immersion_logs_{user_id}.txt"
         log_filepath = os.path.join("/tmp", log_filename)
@@ -525,7 +529,7 @@ class ImmersionLog(commands.Cog):
                 log_entry = f"{log_date}: {media_type} ({media_name}) -> {amount_logged} {unit_name} | {comment}\n"
                 log_file.write(log_entry)
 
-        await interaction.followup.send("Here are your immersion logs:", file=discord.File(log_filepath))
+        await interaction.followup.send(f"Here are {member.display_name}'s immersion logs:", file=discord.File(log_filepath))
         os.remove(log_filepath)
 
     @discord.app_commands.command(name='log_leaderboard', description='Display the leaderboard for the current month!')
