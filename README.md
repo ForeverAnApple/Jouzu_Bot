@@ -101,7 +101,7 @@ Note: No user commands - internal utility module only.
 ## How to run on Docker
 
 1. Clone the repository
-2. Build the docker image with `docker build -t discord-tmw-bot .`
+2. Build the docker image with `docker build -t discord-jouzu-bot .`
 3. Create a copy of `.env.example` and rename it `.env`, modify the variables to fit your environment
 4. `docker compose up -d`
 

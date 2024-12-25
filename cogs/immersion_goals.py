@@ -188,6 +188,8 @@ class GoalsCog(commands.Cog):
         # Make sure that general immersion time goal is not using amount.
         if media_type == 'Immersion' and goal_type != 'time':
             return await interaction.response.send_message("General Immersion goals MUST be time based.", ephemeral=True)
+        if MEDIA_TYPES[media_type]['unit_is_time'] and goal_type == 'amount':
+            return await interaction.response.send_message("Time based goals MUST have time as goal_type.", ephemeral=True)
 
         try:
             if end_date_or_hours.isdigit():
