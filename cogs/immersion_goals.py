@@ -202,7 +202,7 @@ class GoalsCog(commands.Cog):
 
         await self.bot.RUN(CREATE_GOAL_QUERY, (interaction.user.id, media_type, goal_type, goal_value, end_date_dt.strftime('%Y-%m-%d %H:%M:%S')))
 
-        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'time'
+        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'minute'
         timestamp = int(end_date_dt.timestamp())
         embed = discord.Embed(title="Goal Set!", color=discord.Color.green())
         embed.add_field(name="Media Type", value=media_type, inline=True)
