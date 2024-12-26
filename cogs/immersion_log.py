@@ -169,22 +169,25 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.command(name='log', description='Log your immersion!')
     @discord.app_commands.describe(
         media_type='The type of media you are logging.',
-        amount='Amount. For time-based logs, use the number of minutes.',
+        amount='Pages, Characters, Episodes, etc...',
         time_mins='How long you immersed for (in minutes)',
         name='You can use VNDB ID/Title for VNs, AniList ID/Titlefor Anime/Manga, TMDB titles for Listening or provide free text.',
         comment='Short comment about your log.',
-        backfill_date='Not needed for immersion you have completed today. The date for the log, in YYYY-MM-DD format. You can log no more than 7 days into the past.'
+        backfill_date='YYYY-MM-DD You can log no more than 7 days into the past. Not needed for immersion you have completed today.'
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
-    async def log(self, interaction: discord.Interaction, media_type: str, amount: str, time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
-        if not amount.isdigit():
+    async def log(self, interaction: discord.Interaction, media_type: str, amount: Optional[str], time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
+        if not amount and not time_mins:
+            return await interaction.response.send_message("Please enter either an amount or a time to log. Or both.", ephemeral=True)
+        if amount and not amount.isdigit():
             return await interaction.response.send_message("Amount must be a valid number.", ephemeral=True)
-        amount = int(amount)
-        if amount < 0:
-            return await interaction.response.send_message("Amount must be a positive number.", ephemeral=True)
+        elif amount:
+            amount = int(amount)
+            if amount < 0:
+                return await interaction.response.send_message("Amount must be a positive number.", ephemeral=True)
         allowed_limit = MEDIA_TYPES[media_type]['max_logged']
-        if amount > allowed_limit:
+        if amount and amount > allowed_limit:
             return await interaction.response.send_message(f"Amount must be less than {allowed_limit} for `{MEDIA_TYPES[media_type]['log_name']}`.", ephemeral=True)
 
         if name and len(name) > 150:
@@ -193,16 +196,15 @@ class ImmersionLog(commands.Cog):
             name = name.strip()
         
         unit_is_time = MEDIA_TYPES[media_type]['unit_is_time']
-        if time_mins and unit_is_time:
-            return await interaction.response.send_message("Optional time is not needed for this tracking method.", ephemeral=True)
         if time_mins and not time_mins.isdigit():
             return await interaction.response.send_message("Time tracking must be a valid number.", ephemeral=True)
-        elif not unit_is_time and not time_mins:
-            return await interaction.response.send_message("Time tracking is required!", ephemeral=True)
         elif time_mins:
             time_mins = int(time_mins)
-            if time_mins < 0 or time_mins > 1440:
+            if time_mins < 1 or time_mins > 1440:
                 return await interaction.response.send_message("Time tracking must be between 1 - 1440", ephemeral=True)
+
+        if unit_is_time and time_mins and amount:
+            return await interaction.response.send_message("This tracking is pure time based, no need to enter time twice.", ephemeral=True)
 
         if comment and len(comment) > 200:
             return await interaction.response.send_message("Comment must be less than 200 characters.", ephemeral=True)
@@ -225,11 +227,15 @@ class ImmersionLog(commands.Cog):
 
         await interaction.response.defer()
 
-        #time_logged = round(amount * MEDIA_TYPES[media_type]['points_multiplier'], 2)
+        time_logged = 0
+        amount_logged = 0
         if unit_is_time:
-            time_logged = amount
-        else:
-            time_logged = time_mins if time_mins else 0
+            time_logged = time_mins if time_mins else amount
+            amount_logged = time_logged
+        elif time_mins:
+            time_logged = time_mins
+        if amount:
+            amount_logged = amount
         achievement_group = MEDIA_TYPES[media_type]['Achievement_Group']
         user = interaction.user
         total_achievement_units_before = await self.get_total_units_for_achievement_group(user.id, achievement_group)
@@ -239,8 +245,8 @@ class ImmersionLog(commands.Cog):
 
         await self.bot.RUN(
             CREATE_LOG_QUERY,
-            (user.id, media_type, name, comment, amount,
-             time_logged, log_date, MEDIA_TYPES[media_type]['Achievement_Group'])
+            (user.id, media_type, name, comment, amount_logged,
+             time_logged, log_date, achievement_group)
         )
 
         current_month_time_after = await self.get_time_for_current_month(user.id)
@@ -251,7 +257,7 @@ class ImmersionLog(commands.Cog):
         goal_statuses += await check_goal_status(self.bot, user.id, media_type)
 
         # Check achievement for the category
-        total_achievement_units_after = total_achievement_units_before + amount
+        total_achievement_units_after = total_achievement_units_before + amount_logged
         achievement_reached, current_achievement, next_achievement = await get_achievement_reached_info(achievement_group, total_achievement_units_before, total_achievement_units_after)
 
         # Check achievement for total immersion time overall
@@ -291,8 +297,8 @@ class ImmersionLog(commands.Cog):
 
         unit_name=MEDIA_TYPES[media_type]['unit_name']
         embed_title = (
-            f"Logged {amount} {unit_name}"
-            f"{'s' if amount > 1 else ''} of {media_type} {random_guild_emoji}"
+            f"Logged {amount_logged} {unit_name}"
+            f"{'s' if amount_logged > 1 else ''} of {media_type} {random_guild_emoji}"
         )
 
         log_embed = discord.Embed(title=embed_title, color=discord.Color.random())
@@ -302,7 +308,7 @@ class ImmersionLog(commands.Cog):
         log_embed.add_field(name="Total Minutes/Month",
                             value=f"`{current_month_time_before}` → `{current_month_time_after}`")
         log_embed.add_field(name="Streak", value=f"{consecutive_days} day{'s' if consecutive_days > 1 else ''}")
-        log_embed.add_field(name=f"Category: {unit_name}(s) Received", value=amount)
+        log_embed.add_field(name=f"Category: {unit_name}(s) Received", value=amount_logged)
         log_embed.add_field(name=f"Total {unit_name}s",
                             value=f"`{total_achievement_units_before}` → `{total_achievement_units_after}`")
 
@@ -346,6 +352,12 @@ class ImmersionLog(commands.Cog):
         if achievement_reached or immersion_achievement_reached:
             await logged_message.reply(achievement_notif_str)
 
+        # Warn user of potential mistracking
+        if not unit_is_time:
+            if time_mins and not amount:
+                return await logged_message.reply(f"<@{user.id}>**WARNING** You have tracked only immersion time and not {unit_name}s for {media_type}. Your tracking will **NOT** be counted towards {media_type} achievements. You can `/log_undo` if this was a mistake.")
+            elif amount and not time_mins:
+                return await logged_message.reply(f"<@{user.id}>**WARNING** You have tracked only {unit_name}s for {media_type} and not total immersion time. Your tracking will **NOT** be counted towards server-wide immersion goals. Your tracking will also **NOT** be counted towards total immersion achievements. You can `/log_undo` if this was a mistake.")
 
 
     async def get_consecutive_days_logged(self, user_id: int) -> int:
