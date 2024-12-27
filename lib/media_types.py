@@ -92,7 +92,7 @@ MEDIA_TYPES = {
         "unit_name": "minute",
         "source_url": None,
         "Achievement_Group": "Gaming",
-        "color": "#D472A2",
+        "color": "#77DD77",
         "unit_is_time": True,
     },
 }
