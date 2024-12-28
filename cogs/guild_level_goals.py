@@ -1,13 +1,12 @@
-from datetime import datetime, timezone, timedelta
-import discord
 import copy
+import discord
+import os
+
+from datetime import datetime, timezone, timedelta
 from discord.ext import commands
-
 from lib.bot import JouzuBot
-from lib.media_types import LOG_CHOICES, MEDIA_TYPES
-
 from lib.immersion_helpers import is_valid_channel
-
+from lib.media_types import LOG_CHOICES, MEDIA_TYPES
 from typing import Optional
 
 CREATE_GUILD_GOALS_TABLE = """
@@ -23,12 +22,12 @@ CREATE_GUILD_GOALS_TABLE = """
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 """
 
-CREATE_GOAL_QUERY = """
+CREATE_GUILD_GOAL_QUERY = """
     INSERT INTO guild_goals (guild_id, media_type, goal_type, goal_value, per_user_scaling, start_date, end_date)
     VALUES (?, ?, ?, ?, ?, ?, ?);
 """
 
-GET_GUILD_GOAL_QUERY = """
+GET_GUILD_GOALS_QUERY = """
     SELECT goal_id, media_type, goal_type, goal_value, per_user_scaling, start_date, end_date
     FROM guild_goals
     WHERE guild_id = ?;
@@ -51,7 +50,7 @@ GET_GUILD_GOAL_STATUS_QUERY = """
 """
 
 GOAL_CHOICES = [discord.app_commands.Choice(name="General Immersion (mins)",
-                                            value="Immersion"))]
+                                            value="Immersion")]
 AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(",")]
 
 def is_authorized():
@@ -63,10 +62,10 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
     current_input = current_input.strip()
     jouzu_bot = interaction.client
     jouzu_bot: JouzuBot
-    user_goals = await jouzu_bot.GET(GET_GUILD_GOALS_QUERY, (interaction.guild_id,))
+    guild_goals = await jouzu_bot.GET(GET_GUILD_GOALS_QUERY, (interaction.guild_id,))
     choices = []
 
-    for goal_id, media_type, goal_type, goal_value, start_date, end_date in user_goals:
+    for goal_id, media_type, goal_type, goal_value, per_user_scaling, start_date, end_date in guild_goals:
         end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         end_date_str = end_date_dt.strftime('%Y-%m-%d %H:%M UTC')
         start_date_dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
@@ -100,19 +99,15 @@ class GuildGoalsCog(commands.Cog):
         discord.app_commands.Choice(name='Amount', value='amount')],
         media_type=GOAL_CHOICES)
     @is_authorized()
-    async def log_set_server_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int,start_date: str, end_date: str, per_user_scaling: Optional[str]):
+    async def log_set_server_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, start_date: str, end_date: str, per_user_scaling: Optional[str]):
         # Make sure that general immersion time goal is not using amount.
         if media_type == 'Immersion' and goal_type != 'time':
             return await interaction.response.send_message("General Immersion goals MUST be time based.", ephemeral=True)
         if media_type != 'Immersion' and MEDIA_TYPES[media_type]['unit_is_time'] and goal_type == 'amount':
             return await interaction.response.send_message("Time based goals MUST have time as goal_type.", ephemeral=True)
 
-        if goal_value.isdigit():
-            return await interaction.response.send_message("Goal value must be a valid number.", ephemeral=True)
-        else:
-            goal_value = int(goal_value)
-            if goal_value < 1:
-                return await interaction.response.send_message("Goal value must be above 0.", ephemeral=True)
+        if goal_value < 1:
+            return await interaction.response.send_message("Goal value must be above 0.", ephemeral=True)
 
         if per_user_scaling and per_user_scaling.isdigit():
             return await interaction.response.send_message("Per user scaling must be a valid number.", ephemeral=True)
@@ -123,11 +118,14 @@ class GuildGoalsCog(commands.Cog):
 
         try:
             start_date_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-            if start_date_dt < discord.utils.utcnow().replace(minute=0, second=0, microsecond=0):
-                return await interaction.response.send_message("The end date must be in the future.", ephemeral=True)
+            # if start_date_dt < discord.utils.utcnow().replace(minute=0, second=0, microsecond=0):
+            #     return await interaction.response.send_message("The start date must be in the future.", ephemeral=True)
             end_date_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
             if end_date_dt < discord.utils.utcnow().replace(minute=0, second=0, microsecond=0):
                 return await interaction.response.send_message("The end date must be in the future.", ephemeral=True)
+
+            if end_date_dt <= start_date_dt:
+                return await interaction.response.send_message("End date must be after start date.", ephemeral=True)
         except ValueError:
             return await interaction.response.send_message("Invalid input. Please use date in YYYY-MM-DD format.", ephemeral=True)
 
@@ -146,3 +144,29 @@ class GuildGoalsCog(commands.Cog):
         embed.set_footer(text=f"Goal set by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
         await interaction.response.send_message(embed=embed)
 
+
+    @discord.app_commands.command(name='log_remove_server_goal', description='Remove one of the server\'s goals.')
+    @discord.app_commands.describe(goal_entry='Select the goal you want to remove.')
+    @discord.app_commands.autocomplete(goal_entry=goal_undo_autocomplete)
+    @is_authorized()
+    async def log_remove_server_goal(self, interaction: discord.Interaction, goal_entry: str):
+        if not goal_entry.isdigit():
+            return await interaction.response.send_message("Invalid goal entry selected.", ephemeral=True)
+
+        goal_id = int(goal_entry)
+        guild_goals = await self.bot.GET(GET_GUILD_GOALS_QUERY, (interaction.guild_id,))
+        goal_ids = [goal[0] for goal in guild_goals]
+
+        if goal_id not in goal_ids:
+            return await interaction.response.send_message("The selected goal entry does not exist or does not belong to the server.", ephemeral=True)
+
+        goal_to_remove = next(goal for goal in guild_goals if goal[0] == goal_id)
+        goal_type, goal_value, media_type = goal_to_remove[2], goal_to_remove[3], goal_to_remove[1]
+        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'time'
+
+        await self.bot.RUN(DELETE_GUILD_GOAL_QUERY, (goal_id, interaction.guild_id))
+        await interaction.response.send_message(f"{interaction.guild.name}'s `{goal_type}` goal of `{goal_value} {unit_name}{'s' if goal_value > 1 else ''}` for `{media_type}` has been removed.")
+
+
+async def setup(bot):
+    await bot.add_cog(GuildGoalsCog(bot))
