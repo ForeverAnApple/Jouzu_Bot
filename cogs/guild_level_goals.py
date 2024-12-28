@@ -76,6 +76,34 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
 
     return choices[:10]
 
+async def check_guild_goal_status(bot: JouzuBot, guild_id: int):
+    result = await bot.GET(GET_GUILD_GOAL_STATUS_QUERY, (guild_id,))
+    goal_statuses = []
+
+    for goal_id, goal_type, goal_value, per_user_scaling, start_date, end_date, progress in result:
+        end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        current_time = discord.utils.utcnow()
+        timestamp_end = int(end_date_dt.timestamp())
+        timestamp_created = int(created_at_dt.timestamp())
+
+        # Calculate progress percentage and generate emoji progress bar
+        percentage = min(int((progress / goal_value) * 100), 100)
+        bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
+        bar_empty = "⬜" * (10 - (percentage // 10))
+        progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
+
+        # Create status message based on goal progress
+        if (created_at_dt <= current_time <= end_date_dt) and progress < goal_value:
+            goal_status = f"Goal in progress: `{progress}`/`{goal_value}` minutes for immersion time - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
+        elif progress >= goal_value:
+            goal_status = f"🎉 Congratulations! The server achieved the goal of `{goal_value}` minutes for total immersion time between <t:{timestamp_created}:D> and <t:{timestamp_end}:D>."
+        else:
+            goal_status = f"⚠️ Goal failed: `{progress}`/`{goal_value}` minutes for total immersion time by <t:{timestamp_end}:R>. \n{progress_bar}"
+
+        goal_statuses.append(goal_status)
+
+    return goal_statuses
 
 class GuildGoalsCog(commands.Cog):
     def __init__(self, bot: JouzuBot):
@@ -93,11 +121,11 @@ class GuildGoalsCog(commands.Cog):
         start_date='The start date for the goal. (YYYY-MM-DD format)',
         end_date='The end date for the goal by (YYYY-MM-DD format)'
     )
-    @discord.app_commands.guild_only()
     @discord.app_commands.choices(goal_type=[
         discord.app_commands.Choice(name='Time (mins)', value='time'),
         discord.app_commands.Choice(name='Amount', value='amount')],
         media_type=GOAL_CHOICES)
+    @discord.app_commands.guild_only()
     @is_authorized()
     async def log_set_server_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, start_date: str, end_date: str, per_user_scaling: Optional[str]):
         # Make sure that general immersion time goal is not using amount.
@@ -138,7 +166,7 @@ class GuildGoalsCog(commands.Cog):
         embed.add_field(name="Media Type", value=media_type, inline=True)
         embed.add_field(name="Goal Type", value=goal_type.capitalize(), inline=True)
         embed.add_field(name="Goal Value", value=f"{goal_value} {unit_name}{'s' if goal_value > 1 else ''}", inline=True)
-        embed.add_field(name="Start Date", value=f"<t:{start_timestamp}:R>", inline=False)
+        embed.add_field(name="Start Date", value=f"<t:{start_timestamp}:R>", inline=True)
         embed.add_field(name="End Date", value=f"<t:{end_timestamp}:R>", inline=True)
         embed.add_field(name="Per User Scaling", value=f"{per_user_scaling if per_user_scaling else 'No scaling'}", inline=True)
         embed.set_footer(text=f"Goal set by {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
@@ -148,6 +176,7 @@ class GuildGoalsCog(commands.Cog):
     @discord.app_commands.command(name='log_remove_server_goal', description='Remove one of the server\'s goals.')
     @discord.app_commands.describe(goal_entry='Select the goal you want to remove.')
     @discord.app_commands.autocomplete(goal_entry=goal_undo_autocomplete)
+    @discord.app_commands.guild_only()
     @is_authorized()
     async def log_remove_server_goal(self, interaction: discord.Interaction, goal_entry: str):
         if not goal_entry.isdigit():
@@ -166,6 +195,35 @@ class GuildGoalsCog(commands.Cog):
 
         await self.bot.RUN(DELETE_GUILD_GOAL_QUERY, (goal_id, interaction.guild_id))
         await interaction.response.send_message(f"{interaction.guild.name}'s `{goal_type}` goal of `{goal_value} {unit_name}{'s' if goal_value > 1 else ''}` for `{media_type}` has been removed.")
+
+    @discord.app_commands.command(name='log_view_server_goals', description='View the server\'s current goals.')
+    @discord.app_commands.guild_only()
+    @is_authorized()
+    async def log_view_server_goals(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        guild_goals = await self.bot.GET(GET_GUILD_GOALS_QUERY, (guild.id,))
+
+        if not guild_goals:
+            return await interaction.response.send_message(f"{guild.name} has no active goals.", ephemeral=True)
+
+        embed = discord.Embed(title=f"{guild.name}'s Goals", color=discord.Color.blue())
+        fields_added = 0
+
+        # Immersion Time Goal Status
+        goal_statuses = await check_immersion_goal_status(self.bot, member.id)
+
+        for media_type in MEDIA_TYPES.keys():
+            goal_statuses += await check_goal_status(self.bot, member.id, media_type)
+
+        for i, goal_status in enumerate(goal_statuses):
+            if fields_added < 24:
+                embed.add_field(name=f"Goal {fields_added + 1}", value=goal_status, inline=False)
+                fields_added += 1
+            else:
+                embed.add_field(name="Notice", value=f"{guild.name} have reached the maximum number of fields. Please clear some to view more.", inline=False)
+                break
+
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot):
