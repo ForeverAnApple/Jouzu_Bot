@@ -1,11 +1,12 @@
+import asyncio
 import discord
 import os
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from discord.ext import commands
+from discord.ext import tasks
 from lib.bot import JouzuBot
-from lib.immersion_helpers import is_valid_channel
-from lib.media_types import LOG_CHOICES, MEDIA_TYPES
+from lib.media_types import MEDIA_TYPES
 from typing import Optional
 
 CREATE_GUILD_GOALS_TABLE = """
@@ -33,9 +34,34 @@ GET_GUILD_GOALS_QUERY = """
     WHERE guild_id = ?;
 """
 
+GET_GUILD_GOALS_WITHIN_TIME_QUERY = """
+    SELECT goal_id
+    FROM guild_goals
+    WHERE guild_id = ?
+      AND start_date >= ?
+      AND end_date <= ?;
+"""
+
+GET_GUILD_GOAL_QUERY = """
+    SELECT goal_id, media_type, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date
+    FROM guild_goals
+    WHERE goal_id = ?;
+"""
+
 DELETE_GUILD_GOAL_QUERY = """
     DELETE FROM guild_goals
     WHERE goal_id = ? AND guild_id = ?;
+"""
+
+GET_GUILD_GOALS_STATUS_QUERY = """
+    SELECT goal_id, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date, 
+       (SELECT COALESCE(SUM(time_logged), 0) 
+        FROM logs 
+        WHERE log_date BETWEEN guild_goals.start_date AND guild_goals.end_date)
+        as progress
+    FROM guild_goals
+    WHERE guild_id = ?
+    AND media_type = 'Immersion'
 """
 
 GET_GUILD_GOAL_STATUS_QUERY = """
@@ -46,8 +72,38 @@ GET_GUILD_GOAL_STATUS_QUERY = """
         as progress
     FROM guild_goals
     WHERE guild_id = ?
+    AND goal_id = ?
     AND media_type = 'Immersion'
 """
+
+# ============ STICKY MESSAGES STUFF ================
+CREATE_STICKY_GOALS_TABLE = """
+CREATE TABLE IF NOT EXISTS sticky_goals (
+    guild_id INTEGER NOT NULL,
+    channel_id INTEGER NOT NULL,
+    last_message_id INTEGER,
+    last_message_hash INTEGER,
+    goal_ids TEXT NOT NULL,
+    PRIMARY KEY (guild_id, channel_id));"""
+
+GET_STICKY_GOALS = """
+SELECT channel_id, last_message_id, last_message_hash, goal_ids
+FROM sticky_goals
+WHERE guild_id = ?;"""
+
+UPDATE_STICKY_GOAL = """
+INSERT INTO sticky_goals (guild_id, channel_id, last_message_id, last_message_hash, goal_ids)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (guild_id, channel_id) DO UPDATE SET
+last_message_id = excluded.last_message_id,
+last_message_hash = excluded.last_message_hash,
+goal_ids = excluded.goal_ids;"""
+
+DELETE_STICKY_GOAL = """
+DELETE FROM sticky_goals
+WHERE guild_id = ? AND channel_id = ?;"""
+
+FETCH_LOCK = asyncio.Lock()
 
 GOAL_CHOICES = [discord.app_commands.Choice(name="General Immersion (mins)",
                                             value="Immersion")]
@@ -74,8 +130,39 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
 
     return choices[:10]
 
-async def check_guild_goal_status(bot: JouzuBot, guild_id: int):
-    result = await bot.GET(GET_GUILD_GOAL_STATUS_QUERY, (guild_id,))
+async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) -> str:
+    result = await bot.GET_ONE(GET_GUILD_GOAL_STATUS_QUERY, (guild_id, goal_id))
+    (goal_id, goal_type, goal_value, goal_name, per_user_scaling, start_date, 
+     end_date, progress) = await bot.GET_ONE(GET_GUILD_GOAL_STATUS_QUERY, (guild_id, goal_id))
+    goal_status = ''
+
+    start_date_dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+    end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+    current_time = discord.utils.utcnow()
+    timestamp_start = int(start_date_dt.timestamp())
+    timestamp_end = int(end_date_dt.timestamp())
+
+    # Calculate progress percentage and generate emoji progress bar
+    percentage = min(int((progress / goal_value) * 100), 100)
+    bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
+    bar_empty = "⬜" * (10 - (percentage // 10))
+    progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
+
+    # Create status message based on goal progress
+    if (start_date_dt <= current_time <= end_date_dt) and progress < goal_value:
+        goal_status = f"{goal_name if goal_name else 'Goal'} in progress: `{progress}`/`{goal_value}` minutes for immersion time - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
+    elif progress >= goal_value:
+        goal_status = (f"🎉 Congratulations! The server achieved the "
+                      f"{str(goal_name)+' ' if goal_name else ''}goal of `{goal_value}`"
+                      f" minutes for total immersion time between <t:{timestamp_start}:D>"
+                      f" and <t:{timestamp_end}:D>.")
+    else:
+        goal_status = f"⚠️ {goal_name} failed: `{progress}`/`{goal_value}` minutes for total immersion time by <t:{timestamp_end}:R>. \n{progress_bar}"
+
+    return goal_status
+
+async def check_guild_goals_status(bot: JouzuBot, guild_id: int):
+    result = await bot.GET(GET_GUILD_GOALS_STATUS_QUERY, (guild_id,))
     goal_statuses = []
 
     for goal_id, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date, progress in result:
@@ -109,7 +196,17 @@ class GuildGoalsCog(commands.Cog):
 
     async def cog_load(self):
         await self.bot.RUN(CREATE_GUILD_GOALS_TABLE)
+        await self.bot.RUN(CREATE_STICKY_GOALS_TABLE)
+        self.update_server_goals.start()
 
+    async def _get_message(self, channel_id: int, message_id: int) -> discord.Message:
+        channel = self.bot.get_channel(channel_id)
+        if not channel:
+            channel = await self.bot.fetch_channel(channel_id)
+        message = discord.utils.get(self.bot.cached_messages, id=message_id)
+        if not message:
+            message = await channel.fetch_message(message_id)
+        return message
     
     @discord.app_commands.command(name='log_set_server_goal', description='Set an immersion goal for the server!')
     @discord.app_commands.describe(
@@ -148,8 +245,6 @@ class GuildGoalsCog(commands.Cog):
 
         try:
             start_date_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-            # if start_date_dt < discord.utils.utcnow().replace(minute=0, second=0, microsecond=0):
-            #     return await interaction.response.send_message("The start date must be in the future.", ephemeral=True)
             end_date_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
             if end_date_dt < discord.utils.utcnow().replace(minute=0, second=0, microsecond=0):
                 return await interaction.response.send_message("The end date must be in the future.", ephemeral=True)
@@ -203,7 +298,7 @@ class GuildGoalsCog(commands.Cog):
     @discord.app_commands.command(name='log_view_server_goals', description='View the server\'s current goals.')
     @discord.app_commands.guild_only()
     async def log_view_server_goals(self, interaction: discord.Interaction):
-        guild = interaction.guild
+        guild: Guild = interaction.guild
         guild_goals = await self.bot.GET(GET_GUILD_GOALS_QUERY, (guild.id,))
 
         if not guild_goals:
@@ -213,7 +308,7 @@ class GuildGoalsCog(commands.Cog):
         fields_added = 0
 
         # Immersion Time Goal Status
-        goal_statuses = await check_guild_goal_status(self.bot, guild.id)
+        goal_statuses = await check_guild_goals_status(self.bot, guild.id)
 
         for i, goal_status in enumerate(goal_statuses):
             if fields_added < 24:
@@ -224,6 +319,82 @@ class GuildGoalsCog(commands.Cog):
                 break
 
         await interaction.response.send_message(embed=embed)
+
+    @discord.app_commands.command(name='log_sticky_server_goal', description='Set an immersion goal for the server!')
+    @discord.app_commands.describe(
+        start_date='The start date for the goal. (YYYY-MM-DD format)',
+        end_date='The end date for the goal by (YYYY-MM-DD format)',
+    )
+    @discord.app_commands.guild_only()
+    async def log_sticky_server_goal(self, interaction: discord.Interaction, start_date: str, end_date: str):
+        try:
+            start_date_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            end_date_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            if end_date_dt < discord.utils.utcnow().replace(minute=0, second=0, microsecond=0):
+                return await interaction.response.send_message("The end date must be in the future.", ephemeral=True)
+
+            if end_date_dt <= start_date_dt:
+                return await interaction.response.send_message("End date must be after start date.", ephemeral=True)
+        except ValueError:
+            return await interaction.response.send_message("Invalid input. Please use date in YYYY-MM-DD format.", ephemeral=True)
+
+
+        ids = await self.bot.GET(GET_GUILD_GOALS_WITHIN_TIME_QUERY,
+                                 (interaction.guild_id,
+                                  start_date_dt.strftime('%Y-%m-%d %H:%M:%S'),
+                                  end_date_dt.strftime('%Y-%m-%d %H:%M:%S')))
+        if not ids:
+            return await interaction.response.send_message("No goals found within that time period.", ephemeral=True)
+
+        ids_str = ','.join([str(id) for id in ids[0]])
+        await self.bot.RUN(UPDATE_STICKY_GOAL,
+                           (interaction.guild_id,
+                            interaction.channel_id,
+                            None,
+                            None,
+                            ids_str))
+
+        await interaction.response.send_message(f"Will now send sticky messages here for {ids}")
+
+    @tasks.loop(seconds=5)
+    async def update_server_goals(self):
+        for guild in self.bot.guilds:
+            # active_mutes = await self.bot.GET(GET_ALL_MUTES_QUERY, (guild.id,))
+            sticky_goals = await self.bot.GET(GET_STICKY_GOALS, (guild.id,))
+            for channel_id, last_message_id, last_message_hash, goal_ids in sticky_goals:
+                goal_id_list = [int(goal_id) for goal_id in goal_ids.split(',')]
+                new_channel_msg = ''
+                # New line for each goal.
+                for goal_id in goal_id_list:
+                    new_guild_goal_status = await build_guild_goal_status(self.bot, guild.id, goal_id)
+                    if new_guild_goal_status:
+                        new_channel_msg += new_guild_goal_status
+
+                new_status_hash = hash(new_channel_msg)
+                channel: Channel = self.bot.get_channel(channel_id)
+                # Send the latest message to keep it sticky
+                if (channel.last_message_id != last_message_id or
+                    last_message_hash != new_status_hash):
+                    try:
+                        if last_message_id:
+                            original_message = await self._get_message(channel_id, last_message_id)
+                            await original_message.delete()
+
+                        new_sticky = await channel.send(new_channel_msg)
+
+                        await self.bot.RUN(UPDATE_STICKY_GOAL,
+                                           (guild.id,
+                                            channel_id,
+                                            new_sticky.id,
+                                            new_status_hash,
+                                            goal_ids))
+
+                    except discord.NotFound:
+                        await self.bot.RUN(DELETE_STICKY_GOAL,
+                                           (guild.id,
+                                            channel_id))
+
+
 
 
 async def setup(bot):
