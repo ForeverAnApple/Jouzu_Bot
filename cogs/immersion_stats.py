@@ -230,6 +230,7 @@ class ImmersionLogMe(commands.Cog):
         immersion_type='Optional type of immersion to filter by (e.g., reading, listening, etc.).',
     )
     @discord.app_commands.choices(immersion_type=LOG_CHOICES)
+    @discord.app_commands.guild_only()
     async def log_stats(self, interaction: discord.Interaction, user: Optional[discord.User] = None, from_date: Optional[str] = None, to_date: Optional[str] = None, immersion_type: Optional[str] = None):
         await interaction.response.defer()
 

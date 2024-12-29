@@ -177,6 +177,7 @@ class ImmersionLog(commands.Cog):
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
+    @discord.app_commands.guild_only()
     async def log(self, interaction: discord.Interaction, media_type: str, amount: Optional[str], time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
         if not amount and not time_mins:
             return await interaction.response.send_message("Please enter either an amount or a time to log. Or both.", ephemeral=True)
@@ -412,6 +413,7 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.command(name='log_undo', description='Undo a previous immersion log!')
     @discord.app_commands.describe(log_entry='Select the log entry you want to undo.')
     @discord.app_commands.autocomplete(log_entry=log_undo_autocomplete)
+    @discord.app_commands.guild_only()
     async def log_undo(self, interaction: discord.Interaction, log_entry: str):
         if not log_entry.isdigit():
             return await interaction.response.send_message("Invalid log entry selected.", ephemeral=True)
@@ -446,6 +448,7 @@ class ImmersionLog(commands.Cog):
 
     @discord.app_commands.command(name='log_achievements', description='Display all your achievements!')
     @discord.app_commands.describe(user='The user to view achievements for (optional)')
+    @discord.app_commands.guild_only()
     async def log_achievements(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         member = user or interaction.user
         user_id = member.id
@@ -483,6 +486,7 @@ class ImmersionLog(commands.Cog):
 
     @discord.app_commands.command(name='log_export', description='Export immersion logs as a CSV file! Optionally, specify a user ID to export their logs.')
     @discord.app_commands.describe(user='The user to export logs for (optional)')
+    @discord.app_commands.guild_only()
     async def log_export(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         await interaction.response.send_message("Log exports are disabled at the moment.")
         return
@@ -517,6 +521,7 @@ class ImmersionLog(commands.Cog):
 
     @discord.app_commands.command(name='logs', description='Output your immersion logs as a text file!')
     @discord.app_commands.describe(user='The user to export logs for (optional)')
+    @discord.app_commands.guild_only()
     async def logs(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
         await interaction.response.defer()
         member = user or interaction.user
@@ -548,6 +553,7 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.describe(media_type='Optionally specify the media type for leaderboard filtering.',
                                    month='Optionally specify the month in YYYY-MM format or select all with "ALL".')
     @discord.app_commands.choices(media_type=LOG_CHOICES)
+    @discord.app_commands.guild_only()
     async def log_leaderboard(self, interaction: discord.Interaction, media_type: Optional[str] = None, month: Optional[str] = None):
         return await interaction.response.send_message("Log leaderboards are disabled at the moment.")
 
