@@ -132,8 +132,10 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
 
 async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) -> str:
     result = await bot.GET_ONE(GET_GUILD_GOAL_STATUS_QUERY, (guild_id, goal_id))
+    if not result:
+        return ''
     (goal_id, goal_type, goal_value, goal_name, per_user_scaling, start_date, 
-     end_date, progress) = await bot.GET_ONE(GET_GUILD_GOAL_STATUS_QUERY, (guild_id, goal_id))
+     end_date, progress) = result
     goal_status = ''
 
     start_date_dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
@@ -145,7 +147,7 @@ async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) ->
     # Calculate progress percentage and generate emoji progress bar
     percentage = min(int((progress / goal_value) * 100), 100)
     bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
-    bar_empty = "⬜" * (10 - (percentage // 10))
+    bar_empty = "⬛" * (10 - (percentage // 10))
     progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
 
     # Create status message based on goal progress
@@ -372,6 +374,16 @@ class GuildGoalsCog(commands.Cog):
 
                 new_status_hash = hash(new_channel_msg)
                 channel: Channel = self.bot.get_channel(channel_id)
+
+                # Delete the sticky goal if no goals still exist for it.
+                if new_channel_msg == '':
+                    sent = await channel.send("Deleting sticky goal in this channel, no goals associated to it exists.")
+                    if sent:
+                        await self.bot.RUN(DELETE_STICKY_GOAL,
+                                           (guild.id,
+                                            channel_id))
+                    continue
+                
                 # Send the latest message to keep it sticky
                 if (channel.last_message_id != last_message_id or
                     last_message_hash != new_status_hash):
