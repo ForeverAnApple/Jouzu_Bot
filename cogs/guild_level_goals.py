@@ -346,7 +346,7 @@ class GuildGoalsCog(commands.Cog):
         if not ids:
             return await interaction.response.send_message("No goals found within that time period.", ephemeral=True)
 
-        ids_str = ','.join([str(id) for id in ids[0]])
+        ids_str = ','.join([str(id[0]) for id in ids])
         await self.bot.RUN(UPDATE_STICKY_GOAL,
                            (interaction.guild_id,
                             interaction.channel_id,
@@ -368,7 +368,7 @@ class GuildGoalsCog(commands.Cog):
                 for goal_id in goal_id_list:
                     new_guild_goal_status = await build_guild_goal_status(self.bot, guild.id, goal_id)
                     if new_guild_goal_status:
-                        new_channel_msg += new_guild_goal_status
+                        new_channel_msg += new_guild_goal_status + '\n'
 
                 new_status_hash = hash(new_channel_msg)
                 channel: Channel = self.bot.get_channel(channel_id)
