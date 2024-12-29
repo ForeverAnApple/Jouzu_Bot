@@ -52,10 +52,8 @@ GOAL_CHOICES = [discord.app_commands.Choice(name="General Immersion (mins)",
                                             value="Immersion")]
 AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(",")]
 
-def is_authorized():
-    async def predicate(ctx: commands.Context):
-        return ctx.author.id in AUTHORIZED_USER_IDS
-    return commands.check(predicate)
+def is_authorized(user_id: int):
+    return user_id in AUTHORIZED_USER_IDS
 
 async def goal_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
@@ -125,8 +123,10 @@ class GuildGoalsCog(commands.Cog):
         discord.app_commands.Choice(name='Amount', value='amount')],
         media_type=GOAL_CHOICES)
     @discord.app_commands.guild_only()
-    @is_authorized()
     async def log_set_server_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, start_date: str, end_date: str, per_user_scaling: Optional[str]):
+        if not is_authorized(interaction.user.id):
+            return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+
         # Make sure that general immersion time goal is not using amount.
         if media_type == 'Immersion' and goal_type != 'time':
             return await interaction.response.send_message("General Immersion goals MUST be time based.", ephemeral=True)
@@ -176,8 +176,10 @@ class GuildGoalsCog(commands.Cog):
     @discord.app_commands.describe(goal_entry='Select the goal you want to remove.')
     @discord.app_commands.autocomplete(goal_entry=goal_undo_autocomplete)
     @discord.app_commands.guild_only()
-    @is_authorized()
     async def log_remove_server_goal(self, interaction: discord.Interaction, goal_entry: str):
+        if not is_authorized(interaction.user.id):
+            return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+
         if not goal_entry.isdigit():
             return await interaction.response.send_message("Invalid goal entry selected.", ephemeral=True)
 
@@ -197,7 +199,6 @@ class GuildGoalsCog(commands.Cog):
 
     @discord.app_commands.command(name='log_view_server_goals', description='View the server\'s current goals.')
     @discord.app_commands.guild_only()
-    @is_authorized()
     async def log_view_server_goals(self, interaction: discord.Interaction):
         guild = interaction.guild
         guild_goals = await self.bot.GET(GET_GUILD_GOALS_QUERY, (guild.id,))
