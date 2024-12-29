@@ -16,18 +16,19 @@ CREATE_GUILD_GOALS_TABLE = """
     goal_type TEXT NOT NULL CHECK(goal_type IN ('time', 'amount')),
     goal_value INTEGER NOT NULL,
     per_user_scaling INTEGER,
+    goal_name TEXT,
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
 """
 
 CREATE_GUILD_GOAL_QUERY = """
-    INSERT INTO guild_goals (guild_id, media_type, goal_type, goal_value, per_user_scaling, start_date, end_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO guild_goals (guild_id, media_type, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 """
 
 GET_GUILD_GOALS_QUERY = """
-    SELECT goal_id, media_type, goal_type, goal_value, per_user_scaling, start_date, end_date
+    SELECT goal_id, media_type, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date
     FROM guild_goals
     WHERE guild_id = ?;
 """
@@ -38,7 +39,7 @@ DELETE_GUILD_GOAL_QUERY = """
 """
 
 GET_GUILD_GOAL_STATUS_QUERY = """
-    SELECT goal_id, goal_type, goal_value, per_user_scaling, start_date, end_date, 
+    SELECT goal_id, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date, 
        (SELECT COALESCE(SUM(time_logged), 0) 
         FROM logs 
         WHERE log_date BETWEEN guild_goals.start_date AND guild_goals.end_date)
@@ -62,7 +63,7 @@ async def goal_undo_autocomplete(interaction: discord.Interaction, current_input
     guild_goals = await jouzu_bot.GET(GET_GUILD_GOALS_QUERY, (interaction.guild_id,))
     choices = []
 
-    for goal_id, media_type, goal_type, goal_value, per_user_scaling, start_date, end_date in guild_goals:
+    for goal_id, media_type, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date in guild_goals:
         end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         end_date_str = end_date_dt.strftime('%Y-%m-%d %H:%M UTC')
         start_date_dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
@@ -77,7 +78,7 @@ async def check_guild_goal_status(bot: JouzuBot, guild_id: int):
     result = await bot.GET(GET_GUILD_GOAL_STATUS_QUERY, (guild_id,))
     goal_statuses = []
 
-    for goal_id, goal_type, goal_value, per_user_scaling, start_date, end_date, progress in result:
+    for goal_id, goal_type, goal_value, goal_name, per_user_scaling, start_date, end_date, progress in result:
         start_date_dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         current_time = discord.utils.utcnow()
@@ -116,14 +117,16 @@ class GuildGoalsCog(commands.Cog):
         goal_type='The type of goal, either time (mins) or amount.',
         goal_value='The goal value you want to achieve.',
         start_date='The start date for the goal. (YYYY-MM-DD format)',
-        end_date='The end date for the goal by (YYYY-MM-DD format)'
+        end_date='The end date for the goal by (YYYY-MM-DD format)',
+        goal_name='Flavor text for the goal.',
+        per_user_scaling='Scaling factor for server level goals.',
     )
     @discord.app_commands.choices(goal_type=[
         discord.app_commands.Choice(name='Time (mins)', value='time'),
         discord.app_commands.Choice(name='Amount', value='amount')],
         media_type=GOAL_CHOICES)
     @discord.app_commands.guild_only()
-    async def log_set_server_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, start_date: str, end_date: str, per_user_scaling: Optional[str]):
+    async def log_set_server_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, start_date: str, end_date: str, goal_name: Optional[str], per_user_scaling: Optional[str]):
         if not is_authorized(interaction.user.id):
             return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
 
@@ -156,7 +159,7 @@ class GuildGoalsCog(commands.Cog):
         except ValueError:
             return await interaction.response.send_message("Invalid input. Please use date in YYYY-MM-DD format.", ephemeral=True)
 
-        await self.bot.RUN(CREATE_GUILD_GOAL_QUERY, (interaction.guild_id, media_type, goal_type, goal_value, per_user_scaling, start_date_dt.strftime('%Y-%m-%d %H:%M:%S'), end_date_dt.strftime('%Y-%m-%d %H:%M:%S')))
+        await self.bot.RUN(CREATE_GUILD_GOAL_QUERY, (interaction.guild_id, media_type, goal_type, goal_value, goal_name, per_user_scaling, start_date_dt.strftime('%Y-%m-%d %H:%M:%S'), end_date_dt.strftime('%Y-%m-%d %H:%M:%S')))
 
         unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'minute'
         start_timestamp = int(start_date_dt.timestamp())
