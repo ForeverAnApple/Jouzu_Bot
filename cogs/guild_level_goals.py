@@ -1,4 +1,3 @@
-import copy
 import discord
 import os
 
@@ -42,7 +41,7 @@ GET_GUILD_GOAL_STATUS_QUERY = """
     SELECT goal_id, goal_type, goal_value, per_user_scaling, start_date, end_date, 
        (SELECT COALESCE(SUM(time_logged), 0) 
         FROM logs 
-        AND log_date BETWEEN guild_goals.start_date AND guild_goals.end_date)
+        WHERE log_date BETWEEN guild_goals.start_date AND guild_goals.end_date)
         as progress
     FROM guild_goals
     WHERE guild_id = ?
@@ -81,11 +80,11 @@ async def check_guild_goal_status(bot: JouzuBot, guild_id: int):
     goal_statuses = []
 
     for goal_id, goal_type, goal_value, per_user_scaling, start_date, end_date, progress in result:
+        start_date_dt = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         end_date_dt = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
-        created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
         current_time = discord.utils.utcnow()
+        timestamp_start = int(start_date_dt.timestamp())
         timestamp_end = int(end_date_dt.timestamp())
-        timestamp_created = int(created_at_dt.timestamp())
 
         # Calculate progress percentage and generate emoji progress bar
         percentage = min(int((progress / goal_value) * 100), 100)
@@ -94,10 +93,10 @@ async def check_guild_goal_status(bot: JouzuBot, guild_id: int):
         progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
 
         # Create status message based on goal progress
-        if (created_at_dt <= current_time <= end_date_dt) and progress < goal_value:
+        if (start_date_dt <= current_time <= end_date_dt) and progress < goal_value:
             goal_status = f"Goal in progress: `{progress}`/`{goal_value}` minutes for immersion time - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
         elif progress >= goal_value:
-            goal_status = f"🎉 Congratulations! The server achieved the goal of `{goal_value}` minutes for total immersion time between <t:{timestamp_created}:D> and <t:{timestamp_end}:D>."
+            goal_status = f"🎉 Congratulations! The server achieved the goal of `{goal_value}` minutes for total immersion time between <t:{timestamp_start}:D> and <t:{timestamp_end}:D>."
         else:
             goal_status = f"⚠️ Goal failed: `{progress}`/`{goal_value}` minutes for total immersion time by <t:{timestamp_end}:R>. \n{progress_bar}"
 
@@ -140,7 +139,7 @@ class GuildGoalsCog(commands.Cog):
         if per_user_scaling and per_user_scaling.isdigit():
             return await interaction.response.send_message("Per user scaling must be a valid number.", ephemeral=True)
         elif per_user_scaling:
-            per_user_scaling = int(per_user_scaling)
+            per_user_scaling: int = int(per_user_scaling)
             if per_user_scaling < 1:
                 return await interaction.response.send_message("Per user scaling must be above 0.", ephemeral=True)
 
@@ -210,17 +209,14 @@ class GuildGoalsCog(commands.Cog):
         fields_added = 0
 
         # Immersion Time Goal Status
-        goal_statuses = await check_immersion_goal_status(self.bot, member.id)
-
-        for media_type in MEDIA_TYPES.keys():
-            goal_statuses += await check_goal_status(self.bot, member.id, media_type)
+        goal_statuses = await check_guild_goal_status(self.bot, guild.id)
 
         for i, goal_status in enumerate(goal_statuses):
             if fields_added < 24:
                 embed.add_field(name=f"Goal {fields_added + 1}", value=goal_status, inline=False)
                 fields_added += 1
             else:
-                embed.add_field(name="Notice", value=f"{guild.name} have reached the maximum number of fields. Please clear some to view more.", inline=False)
+                embed.add_field(name="Notice", value=f"{guild.name} have reached the maximum number of fields. Please clear some goals to view more.", inline=False)
                 break
 
         await interaction.response.send_message(embed=embed)
