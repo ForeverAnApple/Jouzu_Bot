@@ -1,22 +1,23 @@
-from lib.bot import JouzuBot
-from lib.anilist_autocomplete import CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY, CACHED_ANILIST_THUMBNAIL_QUERY, CACHED_ANILIST_TITLE_QUERY, CREATE_ANILIST_FTS5_TABLE_QUERY, CREATE_ANILIST_TRIGGER_DELETE, CREATE_ANILIST_TRIGGER_INSERT, CREATE_ANILIST_TRIGGER_UPDATE
-from lib.vndb_autocomplete import CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY, CACHED_VNDB_THUMBNAIL_QUERY, CACHED_VNDB_TITLE_QUERY, CREATE_VNDB_FTS5_TABLE_QUERY, CREATE_VNDB_TRIGGER_DELETE, CREATE_VNDB_TRIGGER_INSERT, CREATE_VNDB_TRIGGER_UPDATE
-from lib.tmdb_autocomplete import CACHED_TMDB_RESULTS_CREATE_TABLE_QUERY, CACHED_TMDB_THUMBNAIL_QUERY, CACHED_TMDB_TITLE_QUERY, CREATE_TMDB_FTS5_TABLE_QUERY, CREATE_TMDB_TRIGGER_DELETE, CREATE_TMDB_TRIGGER_INSERT, CREATE_TMDB_TRIGGER_UPDATE, CACHED_TMDB_GET_MEDIA_TYPE_QUERY
-from lib.media_types import MEDIA_TYPES, LOG_CHOICES
-from lib.immersion_helpers import is_valid_channel, get_achievement_reached_info, get_current_and_next_achievement
 from .immersion_goals import check_goal_status, check_immersion_goal_status
 from .username_fetcher import get_username_db
+from lib.anilist_autocomplete import CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY, CACHED_ANILIST_THUMBNAIL_QUERY, CACHED_ANILIST_TITLE_QUERY, CREATE_ANILIST_FTS5_TABLE_QUERY, CREATE_ANILIST_TRIGGER_DELETE, CREATE_ANILIST_TRIGGER_INSERT, CREATE_ANILIST_TRIGGER_UPDATE
+from lib.bot import JouzuBot
+from lib.immersion_helpers import is_valid_channel, get_achievement_reached_info, get_current_and_next_achievement
+from lib.media_types import MEDIA_TYPES, LOG_CHOICES
+from lib.tmdb_autocomplete import CACHED_TMDB_RESULTS_CREATE_TABLE_QUERY, CACHED_TMDB_THUMBNAIL_QUERY, CACHED_TMDB_TITLE_QUERY, CREATE_TMDB_FTS5_TABLE_QUERY, CREATE_TMDB_TRIGGER_DELETE, CREATE_TMDB_TRIGGER_INSERT, CREATE_TMDB_TRIGGER_UPDATE, CACHED_TMDB_GET_MEDIA_TYPE_QUERY
+from lib.vndb_autocomplete import CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY, CACHED_VNDB_THUMBNAIL_QUERY, CACHED_VNDB_TITLE_QUERY, CREATE_VNDB_FTS5_TABLE_QUERY, CREATE_VNDB_TRIGGER_DELETE, CREATE_VNDB_TRIGGER_INSERT, CREATE_VNDB_TRIGGER_UPDATE
 
+import csv
 import discord
+import humanize
 import os
 import random
-import csv
-import humanize
 
-from typing import Optional
 from datetime import timedelta, datetime
 from discord.ext import commands
-from discord.ext import tasks
+from typing import Optional
+
+EMOTE_SERVER = os.getenv("EMOTE_SERVER")
 
 CREATE_LOGS_TABLE = """
     CREATE TABLE IF NOT EXISTS logs (
@@ -264,36 +265,19 @@ class ImmersionLog(commands.Cog):
         # Check achievement for total immersion time overall
         immersion_achievement_reached, current_immersion_achievement, next_immersion_achievement = await get_achievement_reached_info('Immersion', current_total_time_before, current_total_time_after)
 
-        if interaction.guild and interaction.guild.emojis:
+        # lmao emoji gacha
+        random_guild_emoji = ''
+        if EMOTE_SERVER:
+            emote_guild = self.bot.get_guild(int(EMOTE_SERVER))
+            if emote_guild:
+                random_guild_emoji = random.choice(emote_guild.emojis)
+        if not random_guild_emoji and interaction.guild and interaction.guild.emojis:
             random_guild_emoji = random.choice(interaction.guild.emojis)
-        else:
-            random_guild_emoji = ""
 
         consecutive_days = await self.get_consecutive_days_logged(user.id)
         actual_title = await self.get_title(media_type, name)
         thumbnail_url = await self.get_thumbnail_url(media_type, name)
         source_url = await self.get_source_url(media_type, name)
-
-        # This is to diplay how the time received were calculated without directly using the multiplier....
-        # could be improved on as this is pretty crazy... could set it for each group at this point.
-        # TODO: Probably change this.
-        # if MEDIA_TYPES[media_type]['points_multiplier'] < 1:
-        #     needed_for_one = round(1 / MEDIA_TYPES[media_type]['points_multiplier'], 2)
-        #     if needed_for_one.is_integer():
-        #         time_logged_str = f"`+{time_logged}` (X/{int(needed_for_one)})"
-        #     elif needed_for_one < 5:
-        #         time_logged_str = f"`+{time_logged}` (X/{needed_for_one:.2f})"
-        #     else:
-        #         time_logged_str = f"`+{time_logged}` (X/{int(needed_for_one)})"
-        # else:
-        #     received_for_one = round(MEDIA_TYPES[media_type]['points_multiplier'], 2)
-        #     if received_for_one.is_integer():
-        #         time_logged_str = f"`+{time_logged}` (X*{int(received_for_one)})"
-        #     elif received_for_one < 5:
-        #         time_logged_str = f"`+{time_logged}` (X*{received_for_one:.2f})"
-        #     else:
-        #         time_logged_str = f"`+{time_logged}` (X*{int(received_for_one)})"
-        ##########################
         time_logged_str = f"+{time_logged}min(s)"
 
         unit_name=MEDIA_TYPES[media_type]['unit_name']

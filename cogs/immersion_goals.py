@@ -184,6 +184,7 @@ class GoalsCog(commands.Cog):
         discord.app_commands.Choice(name='Time (mins)', value='time'),
         discord.app_commands.Choice(name='Amount', value='amount')],
         media_type=GOAL_CHOICES)
+    @discord.app_commands.guild_only()
     async def log_set_goal(self, interaction: discord.Interaction, media_type: str, goal_type: str, goal_value: int, end_date_or_hours: str):
         # Make sure that general immersion time goal is not using amount.
         if media_type == 'Immersion' and goal_type != 'time':
@@ -217,6 +218,7 @@ class GoalsCog(commands.Cog):
     @discord.app_commands.command(name='log_remove_goal', description='Remove one of your goals.')
     @discord.app_commands.describe(goal_entry='Select the goal you want to remove.')
     @discord.app_commands.autocomplete(goal_entry=goal_undo_autocomplete)
+    @discord.app_commands.guild_only()
     async def log_remove_goal(self, interaction: discord.Interaction, goal_entry: str):
         if not goal_entry.isdigit():
             return await interaction.response.send_message("Invalid goal entry selected.", ephemeral=True)
@@ -237,6 +239,7 @@ class GoalsCog(commands.Cog):
 
     @discord.app_commands.command(name='log_view_goals', description='View your current goals or the goals of another user.')
     @discord.app_commands.describe(member='The member whose goals you want to view (optional).')
+    @discord.app_commands.guild_only()
     async def log_view_goals(self, interaction: discord.Interaction, member: Optional[discord.Member]):
         member = member or interaction.user
         user_goals = await self.bot.GET(GET_USER_GOALS_QUERY, (member.id,))
@@ -264,6 +267,7 @@ class GoalsCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @discord.app_commands.command(name='log_clear_goals', description='Clear all expired goals.')
+    @discord.app_commands.guild_only()
     async def log_clear_goals(self, interaction: discord.Interaction):
         current_time = discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         expired_goals = await self.bot.GET(GET_EXPIRED_GOALS_QUERY, (interaction.user.id, current_time))
