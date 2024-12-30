@@ -397,7 +397,7 @@ class GuildGoalsCog(commands.Cog):
         await interaction.response.send_message(f"Sticked message in this channel has been deleted.")
 
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(minutes=30)
     async def update_server_goals(self):
         for guild in self.bot.guilds:
             # active_mutes = await self.bot.GET(GET_ALL_MUTES_QUERY, (guild.id,))
