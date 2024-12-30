@@ -166,18 +166,23 @@ async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) ->
     bar_empty = "░" * (16 - int(percentage / 6.25))
     progress_bar = f"[{bar_filled}{bar_empty}] ({percentage}%)"
 
+    # Convert to hour
     progress /= 60.0
     goal_value /= 60.0
 
+    start_time_str = None
+    if current_time < start_date_dt:
+        start_time_str = f'Starts <t:{timestamp_start}:R> '
+
     # Create status message based on goal progress
-    if (start_date_dt <= current_time <= end_date_dt) and progress < goal_value:
-        goal_status = f"{goal_name + ' goal' if goal_name else 'Goal'}: `{progress:.2f}`/`{goal_value:.2f}` hours - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
+    if (current_time <= end_date_dt) and progress < goal_value:
+        goal_status = f"{goal_name + ' goal' if goal_name else 'Goal'}: `{progress:.2f}`/`{goal_value:.2f}` hours - {start_time_str if start_time_str else ''}Ends <t:{timestamp_end}:R>. \n{progress_bar}"
     elif progress >= goal_value:
         goal_status = (f"🎉 Congratulations! The server achieved the "
                       f"{str(goal_name)+' ' if goal_name else ''}goal of `{goal_value}`"
                       f" minutes for total immersion time between <t:{timestamp_start}:D>"
                       f" and <t:{timestamp_end}:D>.")
-    else:
+    elif current_time >= end_date_dt and progress < goal_value:
         goal_status = f"⚠️ {goal_name + ' goal' if goal_name else 'Goal'} failed: `{progress:.2f}`/`{goal_value:.2f}` hours - Ended <t:{timestamp_end}:R>. \n{progress_bar}"
 
     return goal_status
