@@ -145,7 +145,7 @@ async def check_goal_status(bot: JouzuBot, user_id: int, media_type: str):
             unit_name = MEDIA_TYPES[media_type]['unit_name']
             unit_name = f"{unit_name}{'s' if goal_value > 1 else ''}"
         else:
-            unit_name = 'time'
+            unit_name = 'minutes'
 
         # Calculate progress percentage and generate emoji progress bar
         percentage = min(int((progress / goal_value) * 100), 100)
@@ -232,7 +232,7 @@ class GoalsCog(commands.Cog):
 
         goal_to_remove = next(goal for goal in user_goals if goal[0] == goal_id)
         goal_type, goal_value, media_type = goal_to_remove[2], goal_to_remove[3], goal_to_remove[1]
-        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'time'
+        unit_name = MEDIA_TYPES[media_type]['unit_name'] if goal_type == 'amount' else 'minute'
 
         await self.bot.RUN(DELETE_GOAL_QUERY, (goal_id, interaction.user.id))
         await interaction.response.send_message(f"> {interaction.user.mention} Your `{goal_type}` goal of `{goal_value} {unit_name}{'s' if goal_value > 1 else ''}` for `{media_type}` has been removed.")

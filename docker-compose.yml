@@ -2,12 +2,13 @@ services:
   tmw-bot:
     image: discord-jouzu-bot
     environment:
-      - TOKEN
       - AUTHORIZED_USERS
-      - DEBUG_USER
       - COMMAND_PREFIX
+      - DEBUG_USER
+      - EMOTE_SERVER
       - PATH_TO_DB
       - TMDB_API_KEY
+      - TOKEN
     volumes:
       - ./data:/app/data
     restart: unless-stopped
