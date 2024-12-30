@@ -204,15 +204,28 @@ async def check_guild_goals_status(bot: JouzuBot, guild_id: int):
         bar_empty = "⬜" * (10 - (percentage // 10))
         progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
 
-        # Create status message based on goal progress
-        if (start_date_dt <= current_time <= end_date_dt) and progress < goal_value:
-            goal_status = f"Goal in progress: `{progress}`/`{goal_value}` minutes for immersion time - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
-        elif progress >= goal_value:
-            goal_status = f"🎉 Congratulations! The server achieved the goal of `{goal_value}` minutes for total immersion time between <t:{timestamp_start}:D> and <t:{timestamp_end}:D>."
-        else:
-            goal_status = f"⚠️ Goal failed: `{progress}`/`{goal_value}` minutes for total immersion time by <t:{timestamp_end}:R>. \n{progress_bar}"
+        # Convert to hour
+        progress /= 60.0
+        goal_value /= 60.0
 
-        goal_statuses.append(goal_status)
+        start_time_str = None
+        if current_time < start_date_dt:
+            start_time_str = f'Starts <t:{timestamp_start}:R> '
+
+        goal_status = None
+        # Create status message based on goal progress
+        if (current_time <= end_date_dt) and progress < goal_value:
+            goal_status = f"{goal_name + ' goal' if goal_name else 'Goal'}: `{progress:.2f}`/`{goal_value:.2f}` hours - {start_time_str if start_time_str else ''}Ends <t:{timestamp_end}:R>. \n{progress_bar}"
+        elif progress >= goal_value:
+            goal_status = (f"🎉 Congratulations! The server achieved the "
+                          f"{str(goal_name)+' ' if goal_name else ''}goal of `{goal_value}`"
+                          f" minutes for total immersion time between <t:{timestamp_start}:D>"
+                          f" and <t:{timestamp_end}:D>.")
+        elif current_time >= end_date_dt and progress < goal_value:
+            goal_status = f"⚠️ {goal_name + ' goal' if goal_name else 'Goal'} failed: `{progress:.2f}`/`{goal_value:.2f}` hours - Ended <t:{timestamp_end}:R>. \n{progress_bar}"
+
+        if goal_status:
+            goal_statuses.append(goal_status)
 
     return goal_statuses
 
