@@ -146,20 +146,25 @@ async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) ->
 
     # Calculate progress percentage and generate emoji progress bar
     percentage = min(int((progress / goal_value) * 100), 100)
-    bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
-    bar_empty = "⬛" * (10 - (percentage // 10))
-    progress_bar = f"{bar_filled}{bar_empty} ({percentage}%)"
+    # bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
+    # bar_empty = "⬛" * (10 - (percentage // 10))
+    bar_filled = "▓" * int(percentage / 6.25)  # each one represents 6.25%
+    bar_empty = "░" * (16 - int(percentage / 6.25))
+    progress_bar = f"[{bar_filled}{bar_empty}] ({percentage}%)"
+
+    progress /= 60.0
+    goal_value /= 60.0
 
     # Create status message based on goal progress
     if (start_date_dt <= current_time <= end_date_dt) and progress < goal_value:
-        goal_status = f"{goal_name if goal_name else 'Goal'} in progress: `{progress}`/`{goal_value}` minutes for immersion time - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
+        goal_status = f"{goal_name + ' goal' if goal_name else 'Goal'}: `{progress:.2f}`/`{goal_value:.2f}` hours - Ends <t:{timestamp_end}:R>. \n{progress_bar} "
     elif progress >= goal_value:
         goal_status = (f"🎉 Congratulations! The server achieved the "
                       f"{str(goal_name)+' ' if goal_name else ''}goal of `{goal_value}`"
                       f" minutes for total immersion time between <t:{timestamp_start}:D>"
                       f" and <t:{timestamp_end}:D>.")
     else:
-        goal_status = f"⚠️ {goal_name} failed: `{progress}`/`{goal_value}` minutes for total immersion time by <t:{timestamp_end}:R>. \n{progress_bar}"
+        goal_status = f"⚠️ {goal_name + ' goal' if goal_name else 'Goal'} failed: `{progress:.2f}`/`{goal_value:.2f}` hours - Ended <t:{timestamp_end}:R>. \n{progress_bar}"
 
     return goal_status
 
@@ -356,7 +361,7 @@ class GuildGoalsCog(commands.Cog):
                             None,
                             ids_str))
 
-        await interaction.response.send_message(f"Will now send sticky messages here for {ids}")
+        await interaction.response.send_message(f"Sticked here for {len(ids)} message(s).")
 
     @tasks.loop(seconds=5)
     async def update_server_goals(self):
@@ -392,7 +397,7 @@ class GuildGoalsCog(commands.Cog):
                             original_message = await self._get_message(channel_id, last_message_id)
                             await original_message.delete()
 
-                        new_sticky = await channel.send(new_channel_msg)
+                        new_sticky = await channel.send(f"**Sever Immersion Goals**\n{new_channel_msg}")
 
                         await self.bot.RUN(UPDATE_STICKY_GOAL,
                                            (guild.id,
