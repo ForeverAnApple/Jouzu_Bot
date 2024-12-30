@@ -1,6 +1,7 @@
 import asyncio
 import discord
 import os
+import re
 
 from datetime import datetime, timezone
 from discord.ext import commands
@@ -168,22 +169,24 @@ async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) ->
 
     # Convert to hour
     progress /= 60.0
-    goal_value /= 60.0
+    goal_value //= 60
 
     start_time_str = None
     if current_time < start_date_dt:
         start_time_str = f'Starts <t:{timestamp_start}:R> '
 
+    goal_value_str = re.sub(r"^(-?\d+)(\d{3})", rf"\g<1>,\g<2>", str(goal_value))
+
     # Create status message based on goal progress
     if (current_time <= end_date_dt) and progress < goal_value:
-        goal_status = f"{goal_name + ' goal' if goal_name else 'Goal'}: `{progress:.2f}`/`{goal_value:.2f}` hours - {start_time_str if start_time_str else ''}Ends <t:{timestamp_end}:R>. \n{progress_bar}"
+        goal_status = f"{goal_name + ' goal' if goal_name else 'Goal'}: `{progress:.0f}`/`{goal_value_str}` hours - {start_time_str if start_time_str else ''}Ends <t:{timestamp_end}:R>. \n{progress_bar}"
     elif progress >= goal_value:
         goal_status = (f"🎉 Congratulations! The server achieved the "
-                      f"{str(goal_name)+' ' if goal_name else ''}goal of `{goal_value}`"
+                      f"{str(goal_name)+' ' if goal_name else ''}goal of `{goal_value_str}`"
                       f" minutes for total immersion time between <t:{timestamp_start}:D>"
                       f" and <t:{timestamp_end}:D>.")
     elif current_time >= end_date_dt and progress < goal_value:
-        goal_status = f"⚠️ {goal_name + ' goal' if goal_name else 'Goal'} failed: `{progress:.2f}`/`{goal_value:.2f}` hours - Ended <t:{timestamp_end}:R>. \n{progress_bar}"
+        goal_status = f"⚠️ {goal_name + ' goal' if goal_name else 'Goal'} failed: `{progress:.2f}`/`{goal_value_str}` hours - Ended <t:{timestamp_end}:R>. \n{progress_bar}"
 
     return goal_status
 
@@ -444,7 +447,7 @@ class GuildGoalsCog(commands.Cog):
                             original_message = await self._get_message(channel_id, last_message_id)
                             await original_message.delete()
 
-                        new_sticky = await channel.send(f"**Sever Immersion Goals**\n{new_channel_msg}")
+                        new_sticky = await channel.send(f"**Server Immersion Goals**\n{new_channel_msg}")
 
                         await self.bot.RUN(UPDATE_STICKY_GOAL,
                                            (guild.id,
