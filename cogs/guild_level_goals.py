@@ -112,6 +112,20 @@ AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(","
 def is_authorized(user_id: int):
     return user_id in AUTHORIZED_USER_IDS
 
+async def sticky_undo_autocomplete(interaction: discord.Interaction, current_input: str):
+    current_input = current_input.strip()
+    jouzu_bot = interaction.client
+    jouzu_bot: JouzuBot
+    sticky_goals = await jouzu_bot.GET(GET_STICKY_GOALS, (interaction.guild_id,))
+    choices = []
+
+    for channel_id, last_message_id, last_message_hash, goal_ids in sticky_goals:
+        if channel_id == interaction.channel_id:
+            goal_entry = f"Sticked goals in this channel: {goal_ids}"
+            choices.append(discord.app_commands.Choice(name=goal_entry, value=str(channel_id)))
+
+    return choices[:10]
+
 async def goal_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
     jouzu_bot = interaction.client
@@ -362,6 +376,21 @@ class GuildGoalsCog(commands.Cog):
                             ids_str))
 
         await interaction.response.send_message(f"Sticked here for {len(ids)} message(s).")
+
+    @discord.app_commands.command(name='log_remove_sticky_goal', description='Remove one of the server\'s sticky goals.')
+    @discord.app_commands.describe(sticky_entry='Select the sticky you want to remove.')
+    @discord.app_commands.autocomplete(sticky_entry=sticky_undo_autocomplete)
+    @discord.app_commands.guild_only()
+    async def log_remove_sticky_goal(self, interaction: discord.Interaction, sticky_entry: str):
+        if not is_authorized(interaction.user.id):
+            return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+
+        if not sticky_entry.isdigit():
+            return await interaction.response.send_message("Invalid goal entry selected.", ephemeral=True)
+
+        await self.bot.RUN(DELETE_STICKY_GOAL, (interaction.guild_id, sticky_entry))
+        await interaction.response.send_message(f"Sticked message in this channel has been deleted.")
+
 
     @tasks.loop(seconds=5)
     async def update_server_goals(self):
