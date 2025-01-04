@@ -12,7 +12,7 @@ with open(IMMERSION_LOG_SETTINGS, "r", encoding="utf-8") as f:
 
 MEDIA_TYPES = {
     "Visual Novel": {
-        "log_name": "Visual Novel (in characters read)",
+        "log_name": "Visual Novel (characters)",
         "short_id": "VN",
         "max_logged": 2000000,
         "autocomplete": vn_name_autocomplete,
@@ -40,7 +40,7 @@ MEDIA_TYPES = {
         "unit_is_time": False,
     },
     "Anime": {
-        "log_name": "Anime (in episodes watched)",
+        "log_name": "Anime (episodes)",
         "short_id": "ANIME",
         "max_logged": 100,
         "autocomplete": anime_manga_name_autocomplete,
@@ -54,7 +54,7 @@ MEDIA_TYPES = {
         "unit_is_time": False,
     },
     "Listening Time": {
-        "log_name": "Listening Time (in minutes)",
+        "log_name": "Listening (minutes)",
         "short_id": "LT",
         "max_logged": 1440,
         "autocomplete": listening_autocomplete,
@@ -82,7 +82,7 @@ MEDIA_TYPES = {
         "unit_is_time": False,
     },
     "Gaming": {
-        "log_name": "Gaming Time (in minutes)",
+        "log_name": "Gaming (minutes)",
         "short_id": "GT",
         "max_logged": 1440,
         "autocomplete": None,
@@ -93,6 +93,20 @@ MEDIA_TYPES = {
         "source_url": None,
         "Achievement_Group": "Gaming",
         "color": "#77DD77",
+        "unit_is_time": True,
+    },
+    "Output": {
+        "log_name": "Output (minutes)",
+        "short_id": "OT",
+        "max_logged": 1440,
+        "autocomplete": None,
+        "points_multiplier": immersion_log_settings['points_multipliers']["Listening_Time"],
+        "thumbnail_query": None,
+        "title_query": None,
+        "unit_name": "minute",
+        "source_url": None,
+        "Achievement_Group": "Output",
+        "color": "#FFFFFF",
         "unit_is_time": True,
     },
 }
