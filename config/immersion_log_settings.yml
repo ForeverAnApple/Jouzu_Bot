@@ -301,4 +301,45 @@ achievements:
     - points: 750000
       title: "🧠🌲🌲 永遠の森"
       description: "You’ve immersed yourself so deeply that you’ve become one with the forest itself. Its secrets are at your command. 🌲🌲"
+      
+ Output:
+    - points: 1
+      title: "💬🔥 火種"
+      description: "You’ve expressed your first thoughts in Japanese, creating a spark of a fire that will soon burn bright. 🔥"
+    - points: 80
+      title: "💬🌱 芽生え"
+      description: "Your output is budding, as your spoken and written words take root and begin to flourish. 🌱"
+    - points: 180
+      title: "💬🌊 小川"
+      description: "Your words are starting to flow steadily like a gentle stream, shaping meaning into your conversations and writing. 🌊"
+    - points: 480
+      title: "💬🌸 花咲"
+      description: "Your language skills are blooming beautifully, filling your sentences with vibrant and expressive meanings. 🌸"
+    - points: 960
+      title: "💬🍃 微風"
+      description: "Your words carry a subtle grace, like a whispering breeze. Your confidence is picking up speed, ready to gust forward! 🍃"
+    - points: 3840
+      title: "💬🌳 大樹"
+      description: "Your output skills are standing tall and strong, rooted deep in knowledge and branching out with confidence. 🌳"
+    - points: 1920
+      title: "💬🏔️ 山岳"
+      description: "You’ve reached greater heights with your output, tackling challenging expressions like scaling a towering mountain. 🏔️"
+    - points: 8350
+      title: "💬🏞️ 清流"
+      description: "Your sentences flow with clarity and precision, becoming a refreshing stream of fluent Japanese. 🏞️"
+    - points: 16665
+      title: "💬🌅 暁光"
+      description: "Your output shines like the first light of dawn, illuminating complex thoughts with ease. 🌅"
+    - points: 33350
+      title: "💬🌙 月影"
+      description: "Your words reflect elegance and depth, like moonlight dancing across the night sky. 🌙"
+    - points: 50000
+      title: "💬⛈️ 嵐"
+      description: "Your output skills surge with power and intensity which rivals that of a great storm. ⛈️"
+    - points: 100000
+      title: "💬🌒 日食"
+      description: "Your output has reached a rare and extraordinary level, captivating others like a breathtaking eclipse. 🌒"
+    - points: 250000
+      title: "💬🌲🌲 永遠の森"
+      description: "Your words have become timeless, forming a lush forest of knowledge that will thrive forever. 🌲🌲"
 
