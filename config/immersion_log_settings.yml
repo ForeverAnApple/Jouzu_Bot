@@ -302,7 +302,7 @@ achievements:
       title: "🧠🌲🌲 永遠の森"
       description: "You’ve immersed yourself so deeply that you’ve become one with the forest itself. Its secrets are at your command. 🌲🌲"
       
- Output:
+  Output:
     - points: 1
       title: "💬🔥 火種"
       description: "You’ve expressed your first thoughts in Japanese, creating a spark of a fire that will soon burn bright. 🔥"
