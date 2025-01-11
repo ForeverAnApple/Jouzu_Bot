@@ -539,7 +539,7 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.guild_only()
     async def log_leaderboard(self, interaction: discord.Interaction, media_type: Optional[str] = None, month: Optional[str] = None):
-        return await interaction.response.send_message("Log leaderboards are disabled at the moment.")
+        return await interaction.response.send_message("Log leaderboards are disabled at the moment. An end of month update will be implemented soon.")
 
         await interaction.response.defer()
 
