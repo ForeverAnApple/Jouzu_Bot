@@ -1,4 +1,4 @@
-from lib.bot import TMWBot
+from lib.bot import JouzuBot
 import yaml
 from typing import Optional
 import os
@@ -39,7 +39,7 @@ REMOVE_MUTE_QUERY = """DELETE FROM active_mutes WHERE guild_id = ? AND user_id =
 
 
 class Selfmute(commands.Cog):
-    def __init__(self, bot: TMWBot):
+    def __init__(self, bot: JouzuBot):
         self.bot = bot
 
     async def cog_load(self):
@@ -47,7 +47,8 @@ class Selfmute(commands.Cog):
         self.clear_mutes.start()
 
     async def perform_mute(self, member: discord.Member, mute_role: discord.Role, unmute_time: datetime):
-        roles_not_to_remove = [member.guild.get_role(role_id) for role_id in selfmute_settings['selfmute_config'].get(member.guild.id, {}).get("roles_not_to_remove", [])]
+        no_remove_list = selfmute_settings['selfmute_config'].get(member.guild.id, {}).get("roles_not_to_remove", [])
+        roles_not_to_remove = [member.guild.get_role(role_id) for role_id in no_remove_list] if no_remove_list else []
         roles_to_save = [role for role in member.roles if not role.is_default() and not role.is_premium_subscriber() and role.is_assignable() and role not in roles_not_to_remove]
         current_roles_string = ",".join([str(role.id) for role in roles_to_save])
         unmute_time_string = unmute_time.strftime("%Y-%m-%d %H:%M:%S")

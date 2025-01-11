@@ -40,6 +40,7 @@ class JouzuBot(commands.Bot):
             "immersion_goals",
             "immersion_stats",
             "guild_level_goals",
+            "selfmute",
         }
         for cog in cogs:
             cog_name = f"{cog[:-3]}"
