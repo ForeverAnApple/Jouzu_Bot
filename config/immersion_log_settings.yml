@@ -116,25 +116,25 @@ achievements:
     - points: 75
       title: "🎥🌳 大樹"
       description: "As you explore different anime, you're branching out and becoming familiar with all the tropes! 🌳"
-    - points: 100
+    - points: 125
       title: "🎥🏔️ 山岳"
       description: "You've reached the summit of slice of life, and now its flow feels as natural as a mountain breeze! 🏔️"
-    - points: 125
+    - points: 250
       title: "🎥🏞️ 清流"
       description: "Like a mountain stream carving new paths, you're seeking out more complex genres to explore! 🏞️"
-    - points: 1000
+    - points: 500
       title: "🎥🌅 暁光"
       description: "As the sun rises on your understanding, you’ve uncovered the cultural roots behind anime, gaining a deeper appreciation for Japanese traditions and storytelling. 🌅"
-    - points: 5000
+    - points: 750
       title: "🎥🌙 月影"
       description: "Like the moon growing fuller with each phase, you're embracing longer series and the intricate plots they bring! 🌙"
-    - points: 10000
+    - points: 1000
       title: "🎥⛈️ 嵐"
       description: "The images crash into your mind like a storm, and you're fearless, even with the fiercest of anime! ⛈️"
-    - points: 25000
+    - points: 2500
       title: "🎥🌒 日食"
       description: "You've long forsaken the light of the sun. The animation burns brightly in your soul! 🌒"
-    - points: 50000 
+    - points: 5000 
       title: "🎥🌲🌲 永遠の森"
       description: "You've seen it all, yet you constantly seek new thrills. Your knowledge of the forest is infinite, share it wisely! 🌲🌲"
 
