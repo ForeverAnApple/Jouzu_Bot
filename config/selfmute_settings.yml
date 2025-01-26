@@ -15,6 +15,7 @@ selfmute_config:
     announce_channel: 1297383003256787057
   1320125298297147443: # Jura
     mute_roles:
-      - 1327725097305374741 #self-mute
+      - 1327725097305374741 # self-mute with sharing
+      - 1332877196573933660 # purgatory, gone from everything
     roles_not_to_remove:
     announce_channel: 1321286313613463594
