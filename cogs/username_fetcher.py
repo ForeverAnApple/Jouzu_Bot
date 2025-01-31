@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
 UPDATE_USERNAME_QUERY = """
 UPDATE users
 SET user_name = ?
-WHERE discord_user_id = ? and guild_id = ?;"""
+WHERE discord_user_id = ? AND guild_id = ?;"""
 
 INSERT_USER_QUERY = """
 INSERT INTO users (discord_user_id, guild_id, nick_name, user_name)
@@ -31,7 +31,7 @@ DO UPDATE SET
 FETCH_USER_QUERY = """
 SELECT nick_name, user_name
 FROM users
-WHERE discord_user_id = ?, guild_id = ?;"""
+WHERE discord_user_id = ? AND guild_id = ?;"""
 
 FETCH_LOCK = asyncio.Lock()
 
@@ -40,17 +40,24 @@ async def get_username_db(bot: JouzuBot, guild_id: int, user: discord.User) -> (
     if user:
         await bot.RUN(INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name))
         return (user.nick, user.display_name)
-    user_name = await bot.GET_ONE(FETCH_USER_QUERY, (user_id, guild_id))
+    user_name = await bot.GET_ONE(FETCH_USER_QUERY, (user.id, guild_id))
     if user_name:
         return (user_name[0], user_name[1])
     async with FETCH_LOCK:
         await asyncio.sleep(1)
-        user = await bot.fetch_user(user_id)
+        user = await bot.fetch_user(user.id)
         if user:
             await bot.RUN(INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name))
             return (user.nick, user.display_name)
         else:
-            return 'Unknown User'
+            return ('Unknown User', 'Unknown User')
+
+async def fetch_username_db(bot: JouzuBot, guild_id: int, user_id: int) -> (str, str):
+    user_name = await bot.GET_ONE(FETCH_USER_QUERY, (user_id, guild_id))
+    if user_name:
+        return (user_name[0], user_name[1])
+
+    return ('Unknown User', 'Unknown User')
 
 
 class UsernameFetcher(commands.Cog):

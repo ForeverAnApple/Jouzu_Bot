@@ -1,5 +1,5 @@
 from .immersion_goals import check_goal_status, check_immersion_goal_status
-from .username_fetcher import get_username_db
+from .username_fetcher import get_username_db, fetch_username_db
 from lib.anilist_autocomplete import CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY, CACHED_ANILIST_THUMBNAIL_QUERY, CACHED_ANILIST_TITLE_QUERY, CREATE_ANILIST_FTS5_TABLE_QUERY, CREATE_ANILIST_TRIGGER_DELETE, CREATE_ANILIST_TRIGGER_INSERT, CREATE_ANILIST_TRIGGER_UPDATE
 from lib.bot import JouzuBot
 from lib.immersion_helpers import is_valid_channel, get_achievement_reached_info, get_current_and_next_achievement
@@ -90,13 +90,16 @@ GET_USER_LOGS_FOR_EXPORT_QUERY = """
 """
 
 GET_MONTHLY_LEADERBOARD_QUERY = """
-    SELECT user_id, SUM(time_logged) AS total_time, SUM(amount_logged)
-    FROM logs
+    SELECT user_id, SUM(time_logged) AS total_time, SUM(amount_logged) AS total_units
+    FROM logs l
+    JOIN users u
+    ON l.user_id = u.discord_user_id
     WHERE (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?)
+    AND u.guild_id = ?
     GROUP BY user_id
     ORDER BY total_time DESC
-    LIMIT 20
+    LIMIT 25
 """
 
 GET_USER_MONTHLY_POINTS_QUERY = """
@@ -107,7 +110,7 @@ GET_USER_MONTHLY_POINTS_QUERY = """
 """
 
 GET_USER_MONTHLY_TIME_FOR_GROUP_QUERY = """
-    SELECT SUM(time_logged) AS total_time, SUM(amount_logged)
+    SELECT SUM(time_logged) AS total_time, SUM(amount_logged) AS total_units
     FROM logs
     WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?);
@@ -439,7 +442,6 @@ class ImmersionLog(commands.Cog):
         achievements_list = []
         achievements_dict = {settings_group['Achievement_Group']: settings_group['unit_name'] for settings_group in MEDIA_TYPES.values()}
         achievements_dict['Immersion'] = 'minute'
-        # print(f'achievements_set include: {achievements_dict}')
 
         for achievement_group, unit_name in achievements_dict.items():
             total_units = await self.get_total_units_for_achievement_group(user_id, achievement_group)
@@ -532,6 +534,58 @@ class ImmersionLog(commands.Cog):
 
         await interaction.followup.send(f"Here are {member.display_name}'s immersion logs:", file=discord.File(log_filepath))
         os.remove(log_filepath)
+
+
+    @discord.app_commands.command(name='log_server_report', description='Server wide immersion statistics.')
+    @discord.app_commands.describe(media_type='Optionally specify the media type for leaderboard filtering.',
+                                   month='Optionally specify the month in YYYY-MM format or select all with "ALL".')
+    @discord.app_commands.choices(media_type=LOG_CHOICES)
+    @discord.app_commands.guild_only()
+    async def log_server_report(self, interaction: discord.Interaction, media_type: Optional[str] = None, month: Optional[str] = None):
+        await interaction.response.defer()
+        guild_id = interaction.guild_id
+
+        if not month:
+            month = discord.utils.utcnow().strftime('%Y-%m')
+        elif month != 'ALL':
+            try:
+                datetime.strptime(month, '%Y-%m').strftime('%Y-%m')
+            except ValueError:
+                return await interaction.followup.send("Invalid month format. Please use YYYY-MM.", ephemeral=True)
+
+        leaderboard_data = await self.bot.GET(GET_MONTHLY_LEADERBOARD_QUERY, (month, month, media_type, media_type, guild_id))
+
+        def human_readable_number(value):
+            # Convert to hour
+            value /= 60.0
+            return f"{value:.1f}"
+
+        embed = discord.Embed(
+            title=f"Immersion Report - {(datetime.strptime(month, '%Y-%m').strftime('%B %Y') if month != 'ALL' else 'All Time')}",
+            color=discord.Color.blue()
+        )
+        if media_type:
+            embed.title += f" for {media_type}"
+        unit_name = MEDIA_TYPES[media_type]['unit_name'] if media_type else None
+        unit_is_time = MEDIA_TYPES[media_type]['unit_is_time'] if media_type else None
+
+        description = ""
+
+        if leaderboard_data:
+            for rank, (user_id, total_time, total_units) in enumerate(leaderboard_data, start=1):
+                (_, user_name) = await fetch_username_db(self.bot, guild_id, user_id)
+                total_time_humanized = human_readable_number(total_time)
+
+                description += f"**{humanize.ordinal(rank)} {user_name}**: {total_time_humanized} hrs \t"
+                if unit_name and not unit_is_time:
+                    description += f" | {total_units} {unit_name}s"
+                description += "\n"
+        else:
+            description = "No logs available for this month. Start immersing to be on the leaderboard!"
+
+        embed.description = description
+
+        await interaction.followup.send(embed=embed)
 
     @discord.app_commands.command(name='log_leaderboard', description='Display the leaderboard for the current month!')
     @discord.app_commands.describe(media_type='Optionally specify the media type for leaderboard filtering.',
