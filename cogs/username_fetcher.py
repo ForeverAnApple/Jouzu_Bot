@@ -1,7 +1,9 @@
 import asyncio
-from lib.bot import JouzuBot
 import discord
+
 from discord.ext import commands
+from discord.ext import tasks
+from lib.bot import JouzuBot
 
 CREATE_USERS_TABLE = """
 CREATE TABLE IF NOT EXISTS users (
@@ -57,6 +59,13 @@ class UsernameFetcher(commands.Cog):
 
     async def cog_load(self):
         await self.bot.RUN(CREATE_USERS_TABLE)
+        self.update_users_in_servers.start()
+
+    @tasks.loop(minutes=30)
+    async def update_users_in_servers(self):
+        for guild in self.bot.guilds:
+            async for user in guild.fetch_members():
+                await self.bot.RUN(INSERT_USER_QUERY, (user.id, guild.id, user.nick, user.display_name))
 
 
 async def setup(bot):
