@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import os
 
 from discord.ext import commands
 from discord.ext import tasks
@@ -35,6 +36,10 @@ WHERE discord_user_id = ? AND guild_id = ?;"""
 
 FETCH_LOCK = asyncio.Lock()
 
+AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(",")]
+
+def is_authorized(user_id: int):
+    return user_id in AUTHORIZED_USER_IDS
 
 async def get_username_db(bot: JouzuBot, guild_id: int, user: discord.User) -> (str, str):
     if user:
@@ -70,6 +75,8 @@ class UsernameFetcher(commands.Cog):
 
     @discord.app_commands.command(name="update_users", description="Update user information in servers")
     async def info(self, interaction: discord.Interaction):
+        if not is_authorized(interaction.user.id):
+            return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         count = 0
         async for user in interaction.guild.fetch_members():
             await self.bot.RUN(INSERT_USER_QUERY, (user.id, interaction.guild_id, user.nick, user.display_name))

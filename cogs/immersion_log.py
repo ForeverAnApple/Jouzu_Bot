@@ -18,6 +18,7 @@ from discord.ext import commands
 from typing import Optional
 
 EMOTE_SERVER = os.getenv("EMOTE_SERVER")
+AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(",")]
 
 CREATE_LOGS_TABLE = """
     CREATE TABLE IF NOT EXISTS logs (
@@ -115,6 +116,9 @@ GET_USER_MONTHLY_TIME_FOR_GROUP_QUERY = """
     WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
     AND (? IS NULL OR media_type = ?);
 """
+
+def is_authorized(user_id: int):
+    return user_id in AUTHORIZED_USER_IDS
 
 async def log_undo_autocomplete(interaction: discord.Interaction, current_input: str):
     current_input = current_input.strip()
@@ -542,6 +546,9 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.guild_only()
     async def log_server_report(self, interaction: discord.Interaction, media_type: Optional[str] = None, month: Optional[str] = None):
+        if not is_authorized(interaction.user.id):
+            return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+
         await interaction.response.defer()
         guild_id = interaction.guild_id
 
