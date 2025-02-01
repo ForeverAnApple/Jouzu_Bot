@@ -68,6 +68,16 @@ class UsernameFetcher(commands.Cog):
         await self.bot.RUN(CREATE_USERS_TABLE)
         self.update_users_in_servers.start()
 
+    @discord.app_commands.command(name="update_users", description="Update user information in servers")
+    async def info(self, interaction: discord.Interaction):
+        count = 0
+        async for user in interaction.guild.fetch_members():
+            await self.bot.RUN(INSERT_USER_QUERY, (user.id, interaction.guild_id, user.nick, user.display_name))
+            count += 1
+
+        await interaction.response.send_message(f'{count} users updated')
+
+
     @tasks.loop(minutes=30)
     async def update_users_in_servers(self):
         for guild in self.bot.guilds:
