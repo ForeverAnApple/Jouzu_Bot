@@ -85,7 +85,7 @@ class UsernameFetcher(commands.Cog):
         await interaction.response.send_message(f'{count} users updated')
 
 
-    @tasks.loop(minutes=30)
+    @tasks.loop(hours=2)
     async def update_users_in_servers(self):
         for guild in self.bot.guilds:
             async for user in guild.fetch_members():
