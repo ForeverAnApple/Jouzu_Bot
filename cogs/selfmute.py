@@ -86,7 +86,7 @@ class Selfmute(commands.Cog):
             ) and not role.is_premium_subscriber() and role.is_assignable()]
             await member.add_roles(*roles_to_restore)
             if channel:
-                await channel.send(f"**🕒 Unmuted {member.mention} and restored the following roles. 🕒\n{', '.join([role.mention for role in roles_to_restore])}**",
+                await channel.send(f"**🕒 Unmuted {member.mention} and restored the roles when possible.. 🕒**",
                                    allowed_mentions=discord.AllowedMentions.none())
         await self.bot.RUN(REMOVE_MUTE_QUERY, (guild_id, user_id))
 
@@ -127,16 +127,13 @@ class Selfmute(commands.Cog):
             announce_channel = interaction.guild.get_channel(announce_channel_id)
 
             mute_message = (
-                f"**🔇You ({interaction.user.mention}) have been muted with `{mute_role.name}` " +
-                f"until <t:{int(unmute_time.timestamp())}:F> which is <t:{int(unmute_time.timestamp())}:R>. 🔇\n**")
-
-            role_message = f"You had the following roles: {', '.join([role.mention for role in user_roles])}**"
+                f"**🔇{interaction.user.mention} have been muted with `{mute_role.name}` " +
+                f"until <t:{int(unmute_time.timestamp())}:F> which is <t:{int(unmute_time.timestamp())}:R>. 🔇**")
 
             if announce_channel:
-                await announce_channel.send(mute_message + role_message, allowed_mentions=discord.AllowedMentions.none())
+                await announce_channel.send(mute_message, allowed_mentions=discord.AllowedMentions.none())
 
             await self.perform_mute(interaction.user, mute_role, unmute_time)
-            await interaction.followup.send(mute_message + role_message, ephemeral=True)
             await interaction.user.send(mute_message)
 
         my_view = discord.ui.View()
