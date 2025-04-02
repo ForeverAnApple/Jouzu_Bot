@@ -179,6 +179,47 @@ achievements:
       title: "🎧🌲🌲 永遠の森"
       description: "You've achieved perfect harmony with the forest. Even the fastest speaker can't throw you off! 🌲🌲"
 
+  PListening:
+    - points: 1
+      title: "P🎧🔥 火種"
+      description: "ALG-hub beginner level 1"
+    - points: 200
+      title: "P🎧🌱 芽生え"
+      description: "ALG-hub beginner level 2"
+    - points: 500
+      title: "P🎧🌊 小川"
+      description: "ALG-hub beginner level 3"
+    - points: 900
+      title: "P🎧🌸 花咲"
+      description: "ALG-hub beginner level 4"
+    - points: 1440
+      title: "P🎧🍃 微風"
+      description: "ALG-hub beginner level 5"
+    - points: 2880
+      title: "P🎧🌳 大樹"
+      description: "ALG-hub beginner level 6"
+    - points: 5000
+      title: "P🎧🏔️ 山岳"
+      description: "ALG-hub beginner level 7"
+    - points: 12500
+      title: "P🎧🏞️ 清流"
+      description: "ALG-hub beginner level 8"
+    - points: 25000
+      title: "P🎧🌅 暁光"
+      description: "ALG-hub beginner level 9"
+    - points: 50000
+      title: "P🎧🌙 月影"
+      description: "ALG-hub beginner level 10"
+    - points: 75000
+      title: "P🎧⛈️ 嵐"
+      description: "ALG-hub beginner level 11"
+    - points: 150000
+      title: "P🎧🌒 日食"
+      description: "ALG-hub beginner level 12"
+    - points: 375000
+      title: "P🎧🌲🌲 永遠の森"
+      description: "ALG-hub beginner level 13"
+
   Reading:
     - points: 1
       title: "📚🔥 火種"
