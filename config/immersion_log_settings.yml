@@ -101,25 +101,25 @@ achievements:
     - points: 1
       title: "🎥🔥 火種"
       description: "You’ve ignited your journey into the world of anime, with countless stories waiting to burn brightly, one episode at a time! 🔥"
-    - points: 6
+    - points: 12
       title: "🎥🌱 芽生え"
       description: "Your anime journey has sprouted. Let each episode bring you closer to your goals! 🌱"
-    - points: 12
+    - points: 24
       title: "🎥🌊 小川"
       description: "You've gathered a collection of episodes, each one flowing seamlessly into your mind. 🌊"
-    - points: 24
+    - points: 50
       title: "🎥🌸 花咲"
       description: "You're blooming into anime, understanding the rhythm of dialogue and the richness of the art form. 🌸"
-    - points: 50
+    - points: 75
       title: "🎥🍃 微風"
       description: "You’ve explored many routes and now feel the gentle breeze of deeper character nuances, understanding each one more clearly. 🍃"
-    - points: 75
+    - points: 125
       title: "🎥🌳 大樹"
       description: "As you explore different anime, you're branching out and becoming familiar with all the tropes! 🌳"
-    - points: 125
+    - points: 200
       title: "🎥🏔️ 山岳"
       description: "You've reached the summit of slice of life, and now its flow feels as natural as a mountain breeze! 🏔️"
-    - points: 250
+    - points: 350
       title: "🎥🏞️ 清流"
       description: "Like a mountain stream carving new paths, you're seeking out more complex genres to explore! 🏞️"
     - points: 500
@@ -142,13 +142,13 @@ achievements:
     - points: 1
       title: "🎧🔥 火種"
       description: "You took your first steps into the world of listening; your ears are just getting warmed up! 🔥"
-    - points: 120
+    - points: 200
       title: "🎧🌱 芽生え"
       description: "You’ve started recognizing sounds and are beginning to plant the seeds of understanding. 🌱"
-    - points: 270
+    - points: 500
       title: "🎧🌊 小川"
       description: "Like a calm river, sounds are flowing easily for you. 🌊"
-    - points: 720
+    - points: 900
       title: "🎧🌸 花咲"
       description: "Speech patterns are blooming around you, like a vibrant field of flowers. 🌸"
     - points: 1440
