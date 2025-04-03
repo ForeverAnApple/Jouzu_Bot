@@ -230,7 +230,7 @@ class ImmersionLog(commands.Cog):
                     return await interaction.response.send_message("You cannot log a date in the future.", ephemeral=True)
                 if (today - log_date.date()).days > 7:
                     return await interaction.response.send_message("You cannot log a date more than 7 days in the past.", ephemeral=True)
-                log_date = log_date.strftime('%Y-%m-%d %H:%M:%S')
+                log_date = log_date.strftime('%Y-%m-%d') + " 23:59:00"
             except ValueError:
                 return await interaction.response.send_message("Invalid date format. Please use YYYY-MM-DD.", ephemeral=True)
 
