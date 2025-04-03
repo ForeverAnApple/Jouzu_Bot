@@ -63,12 +63,12 @@ def set_plot_styles():
         'axes.labelweight': 'bold',
         'xtick.labelsize': 12,
         'ytick.labelsize': 12,
-        'axes.facecolor': '#2c2c2d',
-        'figure.facecolor': '#2c2c2d',
-        'text.color': 'white',
-        'axes.labelcolor': 'white',
-        'xtick.color': 'white',
-        'ytick.color': 'white'
+        'axes.facecolor': '#303446',
+        'figure.facecolor': '#303446',
+        'text.color': '#c6d0f5',
+        'axes.labelcolor': '#c6d0f5',
+        'xtick.color': '#c6d0f5',
+        'ytick.color': '#c6d0f5'
     })
 
 
@@ -161,7 +161,7 @@ def generate_heatmap(df: pd.DataFrame, from_date: datetime, to_date: datetime, i
     num_years = len(heatmap_data)
     fig_height = num_years * 3
     fig, axes = plt.subplots(nrows=num_years, ncols=1, figsize=(18, fig_height))
-    fig.patch.set_facecolor('#2c2c2d')
+    fig.patch.set_facecolor('#303446')
 
     if num_years == 1:
         axes = [axes]
@@ -182,9 +182,9 @@ def generate_heatmap(df: pd.DataFrame, from_date: datetime, to_date: datetime, i
         ax.axis("off")
         # add a colorbar for the heatmap
         cbar = fig.colorbar(ax.collections[0], ax=ax, orientation='horizontal', fraction=0.1, pad=0.02, aspect=50)
-        cbar.ax.yaxis.set_tick_params(color='white')
+        cbar.ax.yaxis.set_tick_params(color='#c6d0f5')
         cbar.outline.set_edgecolor('#222222')
-        plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+        plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='#c6d0f5')
         # Highlight the current day with a dark border
         if current_date.year == year:
             current_week = current_date.isocalendar().week - 1

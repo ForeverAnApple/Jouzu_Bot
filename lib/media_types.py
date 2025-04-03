@@ -22,7 +22,7 @@ MEDIA_TYPES = {
         "unit_name": "character",
         "source_url": "https://vndb.org/",
         "Achievement_Group": "Visual Novel",
-        "color": "#56B4E9",
+        "color": "#eebebe",
         "unit_is_time": False,
     },
     "Manga": {
@@ -36,7 +36,7 @@ MEDIA_TYPES = {
         "unit_name": "page",
         "source_url": "https://anilist.co/manga/",
         "Achievement_Group": "Manga",
-        "color": "#D55E00",
+        "color": "#f4b8e4",
         "unit_is_time": False,
     },
     "Anime": {
@@ -50,7 +50,7 @@ MEDIA_TYPES = {
         "unit_name": "episode",
         "source_url": "https://anilist.co/anime/",
         "Achievement_Group": "Anime",
-        "color": "#F0E442",
+        "color": "#e78284",
         "unit_is_time": False,
     },
     "Listening Time": {
@@ -64,7 +64,7 @@ MEDIA_TYPES = {
         "unit_name": "minute",
         "source_url": "https://www.themoviedb.org/{tmdb_media_type}/",
         "Achievement_Group": "Listening",
-        "color": "#0072B2",
+        "color": "#81c8be",
         "unit_is_time": True,
     },
     "Passive Listening": {
@@ -78,7 +78,7 @@ MEDIA_TYPES = {
         "unit_name": "minute",
         "source_url": "https://www.themoviedb.org/{tmdb_media_type}/",
         "Achievement_Group": "PListening",
-        "color": "#007212",
+        "color": "#a6d189",
         "unit_is_time": True,
     },
     "Reading": {
@@ -92,7 +92,7 @@ MEDIA_TYPES = {
         "unit_name": "character",
         "source_url": "https://anilist.co/manga/",
         "Achievement_Group": "Reading",
-        "color": "#CC79A7",
+        "color": "#ef9f76",
         "unit_is_time": False,
     },
     "Gaming": {
@@ -106,7 +106,7 @@ MEDIA_TYPES = {
         "unit_name": "minute",
         "source_url": None,
         "Achievement_Group": "Gaming",
-        "color": "#77DD77",
+        "color": "#babbf1",
         "unit_is_time": True,
     },
     "Output": {
@@ -120,7 +120,7 @@ MEDIA_TYPES = {
         "unit_name": "minute",
         "source_url": None,
         "Achievement_Group": "Output",
-        "color": "#FFFFFF",
+        "color": "#f2d5cf",
         "unit_is_time": True,
     },
 }
