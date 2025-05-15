@@ -185,7 +185,6 @@ class ImmersionLog(commands.Cog):
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
-    @discord.app_commands.guild_only()
     async def log(self, interaction: discord.Interaction, media_type: str, amount: Optional[str], time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
         if not amount and not time_mins:
             return await interaction.response.send_message("Please enter either an amount or a time to log. Or both.", ephemeral=True)
@@ -404,7 +403,6 @@ class ImmersionLog(commands.Cog):
     @discord.app_commands.command(name='log_undo', description='Undo a previous immersion log!')
     @discord.app_commands.describe(log_entry='Select the log entry you want to undo.')
     @discord.app_commands.autocomplete(log_entry=log_undo_autocomplete)
-    @discord.app_commands.guild_only()
     async def log_undo(self, interaction: discord.Interaction, log_entry: str):
         if not log_entry.isdigit():
             return await interaction.response.send_message("Invalid log entry selected.", ephemeral=True)
@@ -474,40 +472,6 @@ class ImmersionLog(commands.Cog):
                               description=achievements_str, color=discord.Color.gold())
         await interaction.response.send_message(embed=embed)
 
-    @discord.app_commands.command(name='log_export', description='Export immersion logs as a CSV file! Optionally, specify a user ID to export their logs.')
-    @discord.app_commands.describe(user='The user to export logs for (optional)')
-    @discord.app_commands.guild_only()
-    async def log_export(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
-        await interaction.response.send_message("Log exports are disabled at the moment.")
-        return
-
-        user_id = user.id if user else interaction.user.id
-        user_logs = await self.bot.GET(GET_USER_LOGS_FOR_EXPORT_QUERY, (user_id,))
-
-        if not user_logs:
-            return await interaction.response.send_message("No logs to export for the specified user.", ephemeral=True)
-
-        csv_filename = f"immersion_logs_{user_id}.csv"
-        csv_filepath = os.path.join("/tmp", csv_filename)
-
-        with open(csv_filepath, mode='w', newline='', encoding='utf-8') as csv_file:
-            fieldnames = ['Log ID', 'Media Type', 'Media Name', 'Comment', 'Amount Logged', 'Points Received', 'Log Date']
-            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for log in user_logs:
-                writer.writerow({
-                    'Log ID': log[0],
-                    'Media Type': log[1],
-                    'Media Name': log[2] or 'N/A',
-                    'Comment': log[3] or 'No comment',
-                    'Amount Logged': log[4],
-                    'Points Received': log[5],
-                    'Log Date': log[6]
-                })
-
-        await interaction.response.send_message("Here are the immersion logs:", file=discord.File(csv_filepath))
-        os.remove(csv_filepath)
 
     @discord.app_commands.command(name='logs', description='Output your immersion logs as a text file!')
     @discord.app_commands.describe(user='The user to export logs for (optional)')
