@@ -29,14 +29,15 @@ CREATE_LOGS_TABLE = """
     comment TEXT,
     amount_logged INTEGER NOT NULL,
     time_logged REAL NOT NULL,
+    mined INTEGER DEFAULT 0,
     log_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     achievement_group TEXT);
 """
 
 CREATE_LOG_QUERY = """
-    INSERT INTO logs (user_id, media_type, media_name, comment, amount_logged, time_logged, log_date, achievement_group)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO logs (user_id, media_type, media_name, comment, amount_logged, time_logged, mined, log_date, achievement_group)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 """
 
 GET_CONSECUTIVE_DAYS_QUERY = """
@@ -49,6 +50,12 @@ GET_CONSECUTIVE_DAYS_QUERY = """
 
 GET_TIME_FOR_CURRENT_MONTH_QUERY = """
     SELECT SUM(time_logged) AS total_time
+    FROM logs
+    WHERE user_id = ? AND strftime('%Y-%m', log_date) = strftime('%Y-%m', 'now');
+"""
+
+GET_MINED_FOR_CURRENT_MONTH_QUERY = """
+    SELECT SUM(mined) AS total_time
     FROM logs
     WHERE user_id = ? AND strftime('%Y-%m', log_date) = strftime('%Y-%m', 'now');
 """
@@ -103,7 +110,7 @@ GET_MONTHLY_LEADERBOARD_QUERY = """
     LIMIT 25
 """
 
-GET_USER_MONTHLY_POINTS_QUERY = """
+GET_USER_MONTHLY_SUM_QUERY = """
     SELECT SUM(time_logged) AS total_time, SUM(amount_logged)
     FROM logs
     WHERE user_id = ? AND (? = 'ALL' OR strftime('%Y-%m', log_date) = ?)
@@ -181,11 +188,12 @@ class ImmersionLog(commands.Cog):
         time_mins='How long you immersed for (in minutes)',
         name='You can use VNDB ID/Title for VNs, AniList ID/Titlefor Anime/Manga, TMDB titles for Listening or provide free text.',
         comment='Short comment about your log.',
+        mined='Number of cards mined during this session.',
         backfill_date='YYYY-MM-DD You can log no more than 7 days into the past. Not needed for immersion you have completed today.'
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
-    async def log(self, interaction: discord.Interaction, media_type: str, amount: Optional[str], time_mins: Optional[str], name: Optional[str], comment: Optional[str], backfill_date: Optional[str]):
+    async def log(self, interaction: discord.Interaction, media_type: str, amount: Optional[str], time_mins: Optional[str], name: Optional[str], comment: Optional[str], mined: Optional[str], backfill_date: Optional[str]):
         if not amount and not time_mins:
             return await interaction.response.send_message("Please enter either an amount or a time to log. Or both.", ephemeral=True)
         if amount and not amount.isdigit():
@@ -219,6 +227,15 @@ class ImmersionLog(commands.Cog):
         elif comment:
             comment = comment.strip()
 
+        if mined and not mined.isdigit():
+            return await interaction.response.send_message("Mined must be a valid number.", ephemeral=True)
+        elif mined:
+            mined = int(mined)
+            if mined < 0:
+                return await interaction.response.send_message("Mined must be a positive number.", ephemeral=True)
+        else:
+            mined = 0
+
         if backfill_date is None:
             log_date = discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         else:
@@ -250,15 +267,17 @@ class ImmersionLog(commands.Cog):
 
         current_month_time_before = await self.get_time_for_current_month(user.id)
         current_total_time_before = await self.get_total_time_for_user(user.id)
+        current_month_mined_before = await self.get_mined_for_current_month(user.id)
 
         await self.bot.RUN(
             CREATE_LOG_QUERY,
             (user.id, media_type, name, comment, amount_logged,
-             time_logged, log_date, achievement_group)
+             time_logged, mined, log_date, achievement_group)
         )
 
         current_month_time_after = await self.get_time_for_current_month(user.id)
         current_total_time_after = await self.get_total_time_for_user(user.id)
+        current_month_mined_after = await self.get_mined_for_current_month(user.id)
 
         # Check goals
         goal_statuses = await check_immersion_goal_status(self.bot, user.id)
@@ -298,6 +317,8 @@ class ImmersionLog(commands.Cog):
         log_embed.add_field(name="Minutes Received", value=time_logged_str)
         log_embed.add_field(name="Total Minutes/Month",
                             value=f"`{current_month_time_before}` → `{current_month_time_after}`")
+        log_embed.add_field(name="Total Mined/Month",
+                            value=f"`{current_month_mined_before}` → `{current_month_mined_after}`")
         log_embed.add_field(name="Streak", value=f"{consecutive_days} day{'s' if consecutive_days > 1 else ''}")
         log_embed.add_field(name=f"Category: {unit_name}(s) Received", value=amount_logged)
         log_embed.add_field(name=f"Total {unit_name}s",
@@ -370,6 +391,12 @@ class ImmersionLog(commands.Cog):
 
     async def get_time_for_current_month(self, user_id: int) -> float:
         result = await self.bot.GET(GET_TIME_FOR_CURRENT_MONTH_QUERY, (user_id,))
+        if result and result[0] and result[0][0]:
+            return round(result[0][0], 2)
+        return 0.0
+
+    async def get_mined_for_current_month(self, user_id: int) -> float:
+        result = await self.bot.GET(GET_MINED_FOR_CURRENT_MONTH_QUERY, (user_id,))
         if result and result[0] and result[0][0]:
             return round(result[0][0], 2)
         return 0.0
