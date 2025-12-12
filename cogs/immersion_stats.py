@@ -21,6 +21,8 @@ from lib.media_types import MEDIA_TYPES, LOG_CHOICES
 from lib.bot import JouzuBot
 from lib.immersion_helpers import is_valid_channel
 from .username_fetcher import get_username_db
+from lib.anilist_autocomplete import ANILIST_ID_QUERY, CACHED_ANILIST_RESULTS_INSERT_QUERY, query_anilist, CACHED_ANILIST_TITLE_QUERY
+from lib.vndb_autocomplete import CACHED_VNDB_RESULTS_INSERT_QUERY, query_vndb, CACHED_VNDB_TITLE_QUERY
 import matplotlib
 matplotlib.use('Agg')
 
@@ -548,6 +550,32 @@ class ImmersionLogMe(commands.Cog):
         user_logs = await self.bot.GET(query, params)
         return user_logs
 
+    async def fetch_title_from_api(self, media_type: str, media_id: str) -> Optional[str]:
+        class MockInteraction:
+            def __init__(self, media_type_str):
+                self.namespace = {'media_type': media_type_str}
+        
+        if media_type == 'Visual Novel':
+            mock_interaction = MockInteraction('Visual Novel')
+            choices = await query_vndb(mock_interaction, media_id, self.bot)
+            if choices:
+                vndb_id = media_id if media_id.startswith('v') else f"v{media_id}"
+                result = await self.bot.GET_ONE(CACHED_VNDB_TITLE_QUERY, (vndb_id,))
+                if result and result[0]:
+                    return result[0]
+            return None
+        
+        elif media_type in ['Anime', 'Manga']:
+            mock_interaction = MockInteraction('Anime' if media_type == 'Anime' else 'Reading')
+            choices = await query_anilist(mock_interaction, media_id, self.bot)
+            if choices:
+                result = await self.bot.GET_ONE(CACHED_ANILIST_TITLE_QUERY, (int(media_id),))
+                if result and result[0]:
+                    return result[0]
+            return None
+        
+        return None
+
     @discord.app_commands.command(name='log_stats', description='Display an immersion overview with a specified.')
     @discord.app_commands.describe(
         user='Optional user to display the immersion overview for.',
@@ -672,8 +700,8 @@ class ImmersionLogMe(commands.Cog):
             })
             item_stats['entry_count'] = period_df[period_df['media_name'].notna()].groupby('media_name').size()
             item_stats = item_stats.reset_index()
-            most_logged_item = item_stats.sort_values('entry_count', ascending=False).iloc[0] if not item_stats.empty else None
-            
+            most_logged_item = item_stats.sort_values('time_logged', ascending=False).iloc[0] if not item_stats.empty else None
+
             if most_logged_item is not None:
                 media_name = most_logged_item['media_name']
                 media_type_row = period_df[period_df['media_name'] == media_name].iloc[0]
@@ -686,10 +714,18 @@ class ImmersionLogMe(commands.Cog):
                     else:
                         needs_title_lookup = media_name.isdigit()
                     
-                    if needs_title_lookup and MEDIA_TYPES[media_type]['title_query']:
-                        title_result = await self.bot.GET(MEDIA_TYPES[media_type]['title_query'], (media_name,))
-                        if title_result and title_result[0] and title_result[0][0]:
-                            most_logged_item['media_name'] = title_result[0][0]
+                    if needs_title_lookup:
+                        title = None
+                        if MEDIA_TYPES[media_type]['title_query']:
+                            title_result = await self.bot.GET(MEDIA_TYPES[media_type]['title_query'], (media_name,))
+                            if title_result and title_result[0] and title_result[0][0]:
+                                title = title_result[0][0]
+                        
+                        if not title:
+                            title = await self.fetch_title_from_api(media_type, media_name)
+                        
+                        if title:
+                            most_logged_item['media_name'] = title
         else:
             most_logged_item = None
         
