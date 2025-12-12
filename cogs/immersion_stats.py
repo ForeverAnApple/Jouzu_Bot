@@ -708,7 +708,7 @@ class ImmersionLogMe(commands.Cog):
                 media_type = media_type_row['media_type']
                 most_logged_item['media_type'] = media_type
                 
-                if media_type in ['Visual Novel', 'Anime', 'Manga']:
+                if media_type in ['Visual Novel', 'Anime', 'Manga', 'Reading']:
                     if media_type == 'Visual Novel':
                         needs_title_lookup = (media_name.startswith('v') and media_name[1:].isdigit()) or media_name.isdigit()
                     else:
