@@ -29,25 +29,14 @@ class JouzuBot(commands.Bot):
 
     async def load_cogs(self, cogs_to_load):
 
-        cogs = [cog for cog in os.listdir(self.cog_folder) if cog.endswith(".py") and
-                (cogs_to_load == "*" or cog[:-3] in cogs_to_load)]
-        
-        cogs_whitelist = {
-            "sync",
-            "info",
-            "username_fetcher",
-            "immersion_log",
-            "immersion_goals",
-            "immersion_stats",
-            "guild_level_goals",
-            "selfmute",
-        }
+        cogs = [
+            cog
+            for cog in os.listdir(self.cog_folder)
+            if cog.endswith(".py") and (cogs_to_load == "*" or cog[:-3] in cogs_to_load)
+        ]
+
         for cog in cogs:
-            cog_name = f"{cog[:-3]}"
             cog = f"{self.cog_folder}.{cog[:-3]}"
-            if cog_name not in cogs_whitelist:
-                # print(f"{cog_name} is not in the whitelist, not loaded")
-                continue
             await self.load_extension(cog)
             print(f"Loaded {cog}")
 
@@ -81,12 +70,21 @@ class JouzuBot(commands.Bot):
                 row = await cursor.fetchone()
                 return row
 
-    async def on_application_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    async def on_application_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: discord.app_commands.AppCommandError,
+    ):
         if isinstance(error, discord.app_commands.MissingAnyRole):
-            await interaction.response.send_message("You do not have the permission to use this command.", ephemeral=True)
+            await interaction.response.send_message(
+                "You do not have the permission to use this command.", ephemeral=True
+            )
             return
         elif isinstance(error, discord.app_commands.CommandOnCooldown):
-            await interaction.response.send_message(f"This command is currently on cooldown. You can use this command again after {int(error.retry_after)} seconds.", ephemeral=True)
+            await interaction.response.send_message(
+                f"This command is currently on cooldown. You can use this command again after {int(error.retry_after)} seconds.",
+                ephemeral=True,
+            )
             return
 
         command = interaction.command
@@ -94,36 +92,54 @@ class JouzuBot(commands.Bot):
             if command._has_any_error_handlers():
                 return
 
-            _log.error('Ignoring exception in command %r', command.name, exc_info=error)
+            _log.error("Ignoring exception in command %r", command.name, exc_info=error)
         else:
-            _log.error('Ignoring exception in command tree', exc_info=error)
+            _log.error("Ignoring exception in command tree", exc_info=error)
 
-        error_embed = discord.Embed(title="Error", description=f"```{str(error)[:4000]}```", color=discord.Color.red())
+        error_embed = discord.Embed(
+            title="Error",
+            description=f"```{str(error)[:4000]}```",
+            color=discord.Color.red(),
+        )
 
         if interaction.channel.type == discord.ChannelType.private:
-            await self.debug_dm.send(f"Triggered by: `{interaction.command.name}` | Channel: private | User: {interaction.user.id} ({interaction.user.name})  \n"
-                                     f"Data: ```json\n{interaction.data}```",
-                                     embed=error_embed)
+            await self.debug_dm.send(
+                f"Triggered by: `{interaction.command.name}` | Channel: private | User: {interaction.user.id} ({interaction.user.name})  \n"
+                f"Data: ```json\n{interaction.data}```",
+                embed=error_embed,
+            )
         else:
-            await self.debug_dm.send(f"Triggered by: `{interaction.command.name}` | Channel: {interaction.channel.name} | Guild: {interaction.guild.name} | User: {interaction.user.id} ({interaction.user.name})\n"
-                                     f"Data: ```json\n{interaction.data}```",
-                                     embed=error_embed)
+            await self.debug_dm.send(
+                f"Triggered by: `{interaction.command.name}` | Channel: {interaction.channel.name} | Guild: {interaction.guild.name} | User: {interaction.user.id} ({interaction.user.name})\n"
+                f"Data: ```json\n{interaction.data}```",
+                embed=error_embed,
+            )
 
         if not interaction.response.is_done():
-            await interaction.response.send_message("An error occurred while processing your command:", embed=error_embed)
+            await interaction.response.send_message(
+                "An error occurred while processing your command:", embed=error_embed
+            )
         else:
-            await interaction.edit_original_response(content="An error occurred while processing your command:", embed=error_embed)
+            await interaction.edit_original_response(
+                content="An error occurred while processing your command:",
+                embed=error_embed,
+            )
 
     async def on_error(self, event_method, *args, **kwargs):
-        _log.exception('Ignoring exception in %s', event_method)
+        _log.exception("Ignoring exception in %s", event_method)
 
         error_type, error, tb = sys.exc_info()
 
-        traceback_string = '\n'.join(traceback.format_list(traceback.extract_tb(tb)))
+        traceback_string = "\n".join(traceback.format_list(traceback.extract_tb(tb)))
 
-        error_message = f"`{error_type}` occurred in `{event_method}`\n" + \
-            f"```{error}```"
+        error_message = (
+            f"`{error_type}` occurred in `{event_method}`\n" + f"```{error}```"
+        )
         embed_description = f"\n```python\n{traceback_string}```"
 
-        error_embed = discord.Embed(title="Error", description=embed_description[:4000], color=discord.Color.red())
+        error_embed = discord.Embed(
+            title="Error",
+            description=embed_description[:4000],
+            color=discord.Color.red(),
+        )
         await self.debug_dm.send(error_message, embed=error_embed)

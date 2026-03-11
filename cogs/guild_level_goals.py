@@ -188,8 +188,6 @@ async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) ->
 
     # Calculate progress percentage and generate emoji progress bar
     percentage = min(int((progress / goal_value) * 100), 100)
-    # bar_filled = "🟩" * (percentage // 10)  # each green square represents 10%
-    # bar_empty = "⬛" * (10 - (percentage // 10))
     bar_filled = "▓" * int(percentage / 6.25)  # each one represents 6.25%
     bar_empty = "░" * (16 - int(percentage / 6.25))
     progress_bar = f"[{bar_filled}{bar_empty}] ({percentage}%)"
@@ -594,7 +592,6 @@ class GuildGoalsCog(commands.Cog):
     @tasks.loop(minutes=30)
     async def update_server_goals(self):
         for guild in self.bot.guilds:
-            # active_mutes = await self.bot.GET(GET_ALL_MUTES_QUERY, (guild.id,))
             sticky_goals = await self.bot.GET(GET_STICKY_GOALS, (guild.id,))
             for (
                 channel_id,
