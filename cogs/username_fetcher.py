@@ -15,11 +15,6 @@ CREATE TABLE IF NOT EXISTS users (
     PRIMARY KEY (discord_user_id, guild_id)
 );"""
 
-UPDATE_USERNAME_QUERY = """
-UPDATE users
-SET user_name = ?
-WHERE discord_user_id = ? AND guild_id = ?;"""
-
 INSERT_USER_QUERY = """
 INSERT INTO users (discord_user_id, guild_id, nick_name, user_name)
 VALUES (?, ?, ?, ?) 
@@ -38,12 +33,18 @@ FETCH_LOCK = asyncio.Lock()
 
 AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(",")]
 
+
 def is_authorized(user_id: int):
     return user_id in AUTHORIZED_USER_IDS
 
-async def get_username_db(bot: JouzuBot, guild_id: int, user: discord.User) -> (str, str):
+
+async def get_username_db(
+    bot: JouzuBot, guild_id: int, user: discord.User
+) -> (str, str):
     if user:
-        await bot.RUN(INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name))
+        await bot.RUN(
+            INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name)
+        )
         return (user.nick, user.display_name)
     user_name = await bot.GET_ONE(FETCH_USER_QUERY, (user.id, guild_id))
     if user_name:
@@ -52,17 +53,20 @@ async def get_username_db(bot: JouzuBot, guild_id: int, user: discord.User) -> (
         await asyncio.sleep(1)
         user = await bot.fetch_user(user.id)
         if user:
-            await bot.RUN(INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name))
+            await bot.RUN(
+                INSERT_USER_QUERY, (user.id, guild_id, user.nick, user.display_name)
+            )
             return (user.nick, user.display_name)
         else:
-            return ('Unknown User', 'Unknown User')
+            return ("Unknown User", "Unknown User")
+
 
 async def fetch_username_db(bot: JouzuBot, guild_id: int, user_id: int) -> (str, str):
     user_name = await bot.GET_ONE(FETCH_USER_QUERY, (user_id, guild_id))
     if user_name:
         return (user_name[0], user_name[1])
 
-    return ('Unknown User', 'Unknown User')
+    return ("Unknown User", "Unknown User")
 
 
 class UsernameFetcher(commands.Cog):
@@ -73,23 +77,31 @@ class UsernameFetcher(commands.Cog):
         await self.bot.RUN(CREATE_USERS_TABLE)
         self.update_users_in_servers.start()
 
-    @discord.app_commands.command(name="update_users", description="Update user information in servers")
+    @discord.app_commands.command(
+        name="update_users", description="Update user information in servers"
+    )
     async def info(self, interaction: discord.Interaction):
         if not is_authorized(interaction.user.id):
-            return await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+            return await interaction.response.send_message(
+                "You are not authorized to use this command.", ephemeral=True
+            )
         count = 0
         async for user in interaction.guild.fetch_members():
-            await self.bot.RUN(INSERT_USER_QUERY, (user.id, interaction.guild_id, user.nick, user.display_name))
+            await self.bot.RUN(
+                INSERT_USER_QUERY,
+                (user.id, interaction.guild_id, user.nick, user.display_name),
+            )
             count += 1
 
-        await interaction.response.send_message(f'{count} users updated')
-
+        await interaction.response.send_message(f"{count} users updated")
 
     @tasks.loop(hours=2)
     async def update_users_in_servers(self):
         for guild in self.bot.guilds:
             async for user in guild.fetch_members():
-                await self.bot.RUN(INSERT_USER_QUERY, (user.id, guild.id, user.nick, user.display_name))
+                await self.bot.RUN(
+                    INSERT_USER_QUERY, (user.id, guild.id, user.nick, user.display_name)
+                )
 
 
 async def setup(bot):

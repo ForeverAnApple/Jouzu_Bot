@@ -1,8 +1,6 @@
 import aiohttp
 import discord
 import os
-from discord.ext import commands
-from discord.ext import tasks
 
 from lib.bot import JouzuBot
 
@@ -90,7 +88,9 @@ WHERE tmdb_id = ?;
 """
 
 
-async def query_tmdb(interaction: discord.Interaction, current_input: str, bot: JouzuBot):
+async def query_tmdb(
+    interaction: discord.Interaction, current_input: str, bot: JouzuBot
+):
     api_key = os.getenv("TMDB_API_KEY")
     if not api_key:
         raise ValueError("TMDB API Key not found in environment variables")
@@ -108,23 +108,36 @@ async def query_tmdb(interaction: discord.Interaction, current_input: str, bot: 
                 for media in media_list:
                     media_id = media.get("id")
                     title = media.get("name") or media.get("title")
-                    original_title = media.get("original_name") or media.get("original_title")
+                    original_title = media.get("original_name") or media.get(
+                        "original_title"
+                    )
                     media_type = media.get("media_type")
                     poster_path = media.get("poster_path")
-                    poster_path = f"{base_image_url}{poster_path}" if poster_path else None
+                    poster_path = (
+                        f"{base_image_url}{poster_path}" if poster_path else None
+                    )
                     if not title or not media_id:
                         continue
 
                     choice_name = f"{title[:80]} (ID: {media_id}) (API)"
                     if title:
-                        choices.append(discord.app_commands.Choice(name=choice_name, value=str(media_id)))
+                        choices.append(
+                            discord.app_commands.Choice(
+                                name=choice_name, value=str(media_id)
+                            )
+                        )
 
-                    await bot.RUN(CACHED_TMDB_RESULTS_INSERT_QUERY, (media_id, title, original_title, poster_path, media_type))
+                    await bot.RUN(
+                        CACHED_TMDB_RESULTS_INSERT_QUERY,
+                        (media_id, title, original_title, poster_path, media_type),
+                    )
 
                 return choices[:10]
             elif response.status == 429:
                 retry_after = int(response.headers.get("Retry-After", 60))
-                print(f"API rate limit exceeded. Please wait {retry_after} seconds before retrying.")
+                print(
+                    f"API rate limit exceeded. Please wait {retry_after} seconds before retrying."
+                )
                 return []
             else:
                 return []
@@ -134,12 +147,16 @@ async def listening_autocomplete(interaction: discord.Interaction, current_input
     jouzu_bot = interaction.client
     jouzu_bot: JouzuBot
 
-    cached_results = await jouzu_bot.GET(CACHED_TMDB_RESULTS_SEARCH_QUERY, (current_input, current_input))
+    cached_results = await jouzu_bot.GET(
+        CACHED_TMDB_RESULTS_SEARCH_QUERY, (current_input, current_input)
+    )
     choices = []
     for cached_result in cached_results:
         tmdb_id, title, original_title, _, _ = cached_result
         choice_name = f"{title[:80]} (ID: {tmdb_id}) (Cached)"
-        choices.append(discord.app_commands.Choice(name=choice_name, value=str(tmdb_id)))
+        choices.append(
+            discord.app_commands.Choice(name=choice_name, value=str(tmdb_id))
+        )
 
     if len(choices) < 1:
         tmdb_choices = await query_tmdb(interaction, current_input, jouzu_bot)

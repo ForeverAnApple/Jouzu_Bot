@@ -1,7 +1,5 @@
 import aiohttp
 import discord
-from discord.ext import commands
-from discord.ext import tasks
 
 from lib.bot import JouzuBot
 
@@ -123,25 +121,28 @@ WHERE anilist_id = ?;
 """
 
 
-async def query_anilist(interaction: discord.Interaction, current_input: str, bot: JouzuBot):
+async def query_anilist(
+    interaction: discord.Interaction, current_input: str, bot: JouzuBot
+):
     url = "https://graphql.anilist.co"
 
-    media_type = interaction.namespace['media_type']
-    media_type = "MANGA" if media_type == 'Reading' or media_type == 'Reading Time' else media_type.upper()
+    media_type = interaction.namespace["media_type"]
+    media_type = (
+        "MANGA"
+        if media_type == "Reading" or media_type == "Reading Time"
+        else media_type.upper()
+    )
     if current_input.isdigit():
         query = ANILIST_ID_QUERY
-        variables = {
-            "id": int(current_input)
-        }
+        variables = {"id": int(current_input)}
     else:
         query = ANILIST_NAME_QUERY
-        variables = {
-            "search": current_input,
-            "type": media_type
-        }
+        variables = {"search": current_input, "type": media_type}
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(url, json={"query": query, "variables": variables}) as response:
+        async with session.post(
+            url, json={"query": query, "variables": variables}
+        ) as response:
             if response.status == 200:
                 data = await response.json()
                 if current_input.isdigit():
@@ -152,7 +153,9 @@ async def query_anilist(interaction: discord.Interaction, current_input: str, bo
                 choices = []
                 for media in media_list:
                     media_id = media.get("id")
-                    title_english = media.get("title", {}).get("english") or media.get("title", {}).get("romaji")
+                    title_english = media.get("title", {}).get("english") or media.get(
+                        "title", {}
+                    ).get("romaji")
                     title_native = media.get("title", {}).get("native")
                     cover_image_url = media.get("coverImage", {}).get("medium")
                     title = title_english or title_native
@@ -161,45 +164,75 @@ async def query_anilist(interaction: discord.Interaction, current_input: str, bo
 
                     choice_name = f"{title[:80]} (ID: {media_id}) (API)"
                     if title:
-                        choices.append(discord.app_commands.Choice(name=choice_name, value=str(media_id)))
+                        choices.append(
+                            discord.app_commands.Choice(
+                                name=choice_name, value=str(media_id)
+                            )
+                        )
 
-                    await bot.RUN(CACHED_ANILIST_RESULTS_INSERT_QUERY, (media_id, title_english, title_native, cover_image_url, media_type))
+                    await bot.RUN(
+                        CACHED_ANILIST_RESULTS_INSERT_QUERY,
+                        (
+                            media_id,
+                            title_english,
+                            title_native,
+                            cover_image_url,
+                            media_type,
+                        ),
+                    )
 
                 return choices[:10]
             elif response.status == 429:
                 retry_after = int(response.headers.get("Retry-After", 60))
-                print(f"API rate limit exceeded. Please wait {retry_after} seconds before retrying.")
+                print(
+                    f"API rate limit exceeded. Please wait {retry_after} seconds before retrying."
+                )
                 return []
             else:
                 return []
 
 
-async def anime_manga_name_autocomplete(interaction: discord.Interaction, current_input: str):
+async def anime_manga_name_autocomplete(
+    interaction: discord.Interaction, current_input: str
+):
     jouzu_bot = interaction.client
     jouzu_bot: JouzuBot
 
-    media_type = interaction.namespace['media_type']
-    media_type = "MANGA" if media_type == 'Reading' or media_type == 'Reading Time' else media_type.upper()
+    media_type = interaction.namespace["media_type"]
+    media_type = (
+        "MANGA"
+        if media_type == "Reading" or media_type == "Reading Time"
+        else media_type.upper()
+    )
 
     if current_input.isdigit():
-        cached_result = await jouzu_bot.GET_ONE(CACHED_ANILIST_RESULTS_BY_ID_QUERY, (int(current_input), media_type))
+        cached_result = await jouzu_bot.GET_ONE(
+            CACHED_ANILIST_RESULTS_BY_ID_QUERY, (int(current_input), media_type)
+        )
         if cached_result:
             anilist_id, title_english, title_native, _ = cached_result
             title = title_english or title_native
             if title:
                 choice_name = f"{title[:80]} (ID: {anilist_id}) (Cached)"
-                return [discord.app_commands.Choice(name=choice_name, value=str(anilist_id))]
+                return [
+                    discord.app_commands.Choice(name=choice_name, value=str(anilist_id))
+                ]
         else:
             return await query_anilist(interaction, current_input, jouzu_bot)
     else:
-        cached_results = await jouzu_bot.GET(CACHED_ANILIST_RESULTS_SEARCH_QUERY, (current_input, current_input, media_type))
+        cached_results = await jouzu_bot.GET(
+            CACHED_ANILIST_RESULTS_SEARCH_QUERY,
+            (current_input, current_input, media_type),
+        )
         choices = []
         for cached_result in cached_results:
             anilist_id, title_english, title_native, _ = cached_result
             title = title_english or title_native
             if title:
                 choice_name = f"{title[:80]} (ID: {anilist_id}) (Cached)"
-                choices.append(discord.app_commands.Choice(name=choice_name, value=str(anilist_id)))
+                choices.append(
+                    discord.app_commands.Choice(name=choice_name, value=str(anilist_id))
+                )
 
         if len(choices) < 1:
             anilist_choices = await query_anilist(interaction, current_input, jouzu_bot)
