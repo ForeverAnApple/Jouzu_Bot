@@ -31,6 +31,7 @@
             pkgs.pkg-config
             pkgs.gobject-introspection
             pkgs.libffi
+            pkgs.sqlite
           ];
 
           shellHook = ''
