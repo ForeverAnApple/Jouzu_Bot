@@ -8,3 +8,7 @@ data
 .flake8
 poetry.lock
 *.toml
+
+# Nix / direnv
+.direnv/
+result
