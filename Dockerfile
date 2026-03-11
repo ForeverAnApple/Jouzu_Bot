@@ -2,9 +2,7 @@ FROM python:3.14
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk ffmpeg
-
-COPY fonts/NotoEmoji-VariableFont_wght.ttf /usr/share/fonts/NotoEmoji-VariableFont_wght.ttf
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg
 
 COPY requirements.txt ./
 

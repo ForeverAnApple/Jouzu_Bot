@@ -88,26 +88,19 @@ def set_plot_styles():
     # Build font list with Japanese fonts, emoji font, and fallback
     font_list = []
 
-    # Try to find Japanese fonts
-    japanese_fonts = [
-        "Noto Sans CJK JP",
-        "Noto Sans JP",
-        "Yu Gothic",
-        "MS Gothic",
-        "Hiragino Sans",
-    ]
-    for font_name in japanese_fonts:
+    # Register bundled Japanese font
+    jp_font_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "fonts",
+        "NotoSansCJKjp-Regular.otf",
+    )
+    if os.path.exists(jp_font_path):
         try:
-            font_path = fm.findfont(
-                fm.FontProperties(family=font_name),
-                fallback_to_default=False,
-                rebuild_if_missing=True,
-            )
-            if font_path and os.path.exists(font_path):
-                font_list.append(font_name)
-                break
+            fm.fontManager.addfont(jp_font_path)
+            jp_font_prop = fm.FontProperties(fname=jp_font_path)
+            font_list.append(jp_font_prop.get_name())
         except Exception:
-            continue
+            pass
 
     # Register and use NotoEmoji font for emoji support
     emoji_font_path = os.path.join(
