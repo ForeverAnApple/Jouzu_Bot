@@ -206,7 +206,6 @@ class GoalsCog(commands.Cog):
         ],
         media_type=GOAL_CHOICES,
     )
-    @discord.app_commands.guild_only()
     async def log_set_goal(
         self,
         interaction: discord.Interaction,
@@ -284,7 +283,6 @@ class GoalsCog(commands.Cog):
     )
     @discord.app_commands.describe(goal_entry="Select the goal you want to remove.")
     @discord.app_commands.autocomplete(goal_entry=goal_undo_autocomplete)
-    @discord.app_commands.guild_only()
     async def log_remove_goal(self, interaction: discord.Interaction, goal_entry: str):
         if not goal_entry.isdigit():
             return await interaction.response.send_message(
@@ -323,7 +321,6 @@ class GoalsCog(commands.Cog):
     @discord.app_commands.describe(
         member="The member whose goals you want to view (optional)."
     )
-    @discord.app_commands.guild_only()
     async def log_view_goals(
         self, interaction: discord.Interaction, member: Optional[discord.Member]
     ):
@@ -365,7 +362,6 @@ class GoalsCog(commands.Cog):
     @discord.app_commands.command(
         name="log_clear_goals", description="Clear all expired goals."
     )
-    @discord.app_commands.guild_only()
     async def log_clear_goals(self, interaction: discord.Interaction):
         current_time = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         expired_goals = await self.bot.GET(
