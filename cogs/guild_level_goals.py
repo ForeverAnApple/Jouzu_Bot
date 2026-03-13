@@ -209,7 +209,7 @@ async def build_guild_goal_status(bot: JouzuBot, guild_id: int, goal_id: int) ->
         goal_status = (
             f"🎉 Congratulations! The server achieved the "
             f"{str(goal_name) + ' ' if goal_name else ''}goal of `{goal_value_str}`"
-            f" minutes for total immersion time between <t:{timestamp_start}:D>"
+            f" hours for total immersion time between <t:{timestamp_start}:D>"
             f" and <t:{timestamp_end}:D>."
         )
     elif current_time >= end_date_dt and progress < goal_value:
