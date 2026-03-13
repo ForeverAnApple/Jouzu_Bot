@@ -848,7 +848,8 @@ class ImmersionLogMe(commands.Cog):
         return None
 
     @discord.app_commands.command(
-        name="log_stats", description="Display an immersion overview with a specified."
+        name="log_stats",
+        description="Display visualized overview of user's immersion logs."
     )
     @discord.app_commands.describe(
         user="Optional user to display the immersion overview for.",

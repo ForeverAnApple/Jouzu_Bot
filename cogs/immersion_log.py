@@ -154,7 +154,7 @@ async def log_undo_autocomplete(interaction: discord.Interaction, current_input:
     for log_id, media_type, media_name, amount_logged, log_date in user_logs:
         unit_name = MEDIA_TYPES[media_type]["unit_name"]
         log_date_str = datetime.strptime(log_date, "%Y-%m-%d %H:%M:%S").strftime(
-            "%Y-%m-%d"
+            "%Y-%m-%d %H:%M"
         )
         log_name = f"{media_type}: {media_name or 'N/A'} ({amount_logged} {unit_name}) on {log_date_str}"[
             :100
@@ -209,10 +209,10 @@ class ImmersionLog(commands.Cog):
         media_type="The type of media you are logging.",
         amount="Pages, Characters, Episodes, etc...",
         time_mins="How long you immersed for (in minutes)",
-        name="You can use VNDB ID/Title for VNs, AniList ID/Titlefor Anime/Manga, TMDB titles for Listening or provide free text.",
+        name="Can be free text, VNDB ID/Title for VNs or AniList ID/Title for Anime/Manga/Reading.",
         comment="Short comment about your log.",
         mined="Number of cards mined during this session.",
-        backfill_date="YYYY-MM-DD You can log no more than 7 days into the past. Not needed for immersion you have completed today.",
+        backfill_date="YYYY-MM-DD — if logging immersion you completed before today (up to 7 days into the past)",
     )
     @discord.app_commands.choices(media_type=LOG_CHOICES)
     @discord.app_commands.autocomplete(name=log_name_autocomplete)
@@ -594,7 +594,7 @@ class ImmersionLog(commands.Cog):
             GET_TO_BE_DELETED_LOG_QUERY, (interaction.user.id, log_id)
         )
         log_id, media_type, media_name, amount_logged, log_date = deleted_log_info[0]
-        log_date = datetime.strptime(log_date, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
+        log_date = datetime.strptime(log_date, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d %H:%M")
         await self.bot.RUN(DELETE_LOG_QUERY, (log_id, interaction.user.id))
         await interaction.response.send_message(
             f"> {interaction.user.mention} Your log for `{amount_logged} {MEDIA_TYPES[media_type]['unit_name']}` "
@@ -621,7 +621,6 @@ class ImmersionLog(commands.Cog):
         name="log_achievements", description="Display all your achievements!"
     )
     @discord.app_commands.describe(user="The user to view achievements for (optional)")
-    @discord.app_commands.guild_only()
     async def log_achievements(
         self, interaction: discord.Interaction, user: Optional[discord.User] = None
     ):
@@ -673,7 +672,6 @@ class ImmersionLog(commands.Cog):
         name="logs", description="Output your immersion logs as a text file!"
     )
     @discord.app_commands.describe(user="The user to export logs for (optional)")
-    @discord.app_commands.guild_only()
     async def logs(
         self, interaction: discord.Interaction, user: Optional[discord.User] = None
     ):
@@ -693,7 +691,7 @@ class ImmersionLog(commands.Cog):
         with open(log_filepath, mode="w", encoding="utf-8") as log_file:
             for log in user_logs:
                 log_date = datetime.strptime(log[6], "%Y-%m-%d %H:%M:%S").strftime(
-                    "%Y-%m-%d"
+                    "%Y-%m-%d %H:%M"
                 )
                 media_type = log[1]
                 media_name = log[2] or "N/A"
