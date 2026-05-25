@@ -35,13 +35,17 @@
           ];
 
           shellHook = ''
-            if [ ! -d .venv ]; then
+            # Rebuild venv if missing or if its python symlink is dead
+            # (e.g. nix-store GC, python bump, or project was moved).
+            if [ ! -x .venv/bin/python ]; then
               echo "Creating venv..."
-              uv venv .venv
+              rm -rf .venv
+              uv venv .venv --python ${python}/bin/python
+              rm -f .venv/.installed
             fi
             source .venv/bin/activate
 
-            if [ ! -f .venv/.installed ]; then
+            if [ ! -f .venv/.installed ] || [ requirements.txt -nt .venv/.installed ]; then
               echo "Installing Python deps..."
               uv pip install -r requirements.txt
               touch .venv/.installed
