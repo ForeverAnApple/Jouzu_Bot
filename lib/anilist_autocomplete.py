@@ -1,3 +1,5 @@
+import asyncio
+
 import aiohttp
 import discord
 
@@ -154,6 +156,7 @@ UPDATE cached_anilist_results SET media_format = ? WHERE anilist_id = ?;
 """
 
 BACKFILL_CHUNK_SIZE = 50
+BACKFILL_RETRY_SECONDS = 3600
 
 # AniList MediaFormat enum -> label shown before the title in autocomplete.
 FORMAT_LABELS = {
@@ -275,28 +278,44 @@ async def query_anilist(
 
 async def backfill_anilist_formats(bot: JouzuBot):
     """Fill media_format for rows cached before the column existed; cache hits never re-query."""
-    rows = await bot.GET(ANILIST_MISSING_FORMAT_IDS_QUERY)
-    ids = [row[0] for row in rows]
-
-    for start in range(0, len(ids), BACKFILL_CHUNK_SIZE):
-        chunk = ids[start : start + BACKFILL_CHUNK_SIZE]
-        try:
-            status, data, _ = await _post_anilist(
-                {"query": ANILIST_FORMAT_BACKFILL_QUERY, "variables": {"ids": chunk}}
-            )
-        except (aiohttp.ClientError, TimeoutError) as error:
-            print(f"AniList format backfill stopped: {error}.")
-            return
-        if status != 200 or not data:
-            print(f"AniList format backfill stopped: HTTP {status}.")
+    # AniList outages last hours, so a deploy during one must self-heal instead of leaving
+    # every cached row unlabelled until somebody notices and restarts the bot.
+    while True:
+        rows = await bot.GET(ANILIST_MISSING_FORMAT_IDS_QUERY)
+        ids = [row[0] for row in rows]
+        if not ids:
             return
 
-        media_list = ((data.get("data") or {}).get("Page") or {}).get("media") or []
-        for media in media_list:
-            media_id = media.get("id")
-            media_format = media.get("format")
-            if media_id and media_format:
-                await bot.RUN(ANILIST_SET_FORMAT_QUERY, (media_format, media_id))
+        failure = None
+        for start in range(0, len(ids), BACKFILL_CHUNK_SIZE):
+            chunk = ids[start : start + BACKFILL_CHUNK_SIZE]
+            try:
+                status, data, _ = await _post_anilist(
+                    {"query": ANILIST_FORMAT_BACKFILL_QUERY, "variables": {"ids": chunk}}
+                )
+            except (aiohttp.ClientError, TimeoutError) as error:
+                failure = str(error) or type(error).__name__
+                break
+            if status != 200 or not data:
+                failure = f"HTTP {status}"
+                break
+
+            media_list = ((data.get("data") or {}).get("Page") or {}).get("media") or []
+            for media in media_list:
+                media_id = media.get("id")
+                media_format = media.get("format")
+                if media_id and media_format:
+                    await bot.RUN(ANILIST_SET_FORMAT_QUERY, (media_format, media_id))
+
+        # Rows still NULL after a clean pass have no format on AniList either.
+        if failure is None:
+            return
+
+        print(
+            f"AniList format backfill failed ({failure}); "
+            f"retrying in {BACKFILL_RETRY_SECONDS // 60} minutes."
+        )
+        await asyncio.sleep(BACKFILL_RETRY_SECONDS)
 
 
 async def anime_manga_name_autocomplete(

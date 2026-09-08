@@ -1,13 +1,16 @@
+import asyncio
 import os
 import sqlite3
 import tempfile
 import unittest
 from unittest import mock
 
+import aiohttp
 import aiosqlite
 
 from lib import anilist_autocomplete
 from lib.anilist_autocomplete import (
+    BACKFILL_RETRY_SECONDS,
     CACHED_ANILIST_RESULTS_INSERT_QUERY,
     anime_manga_name_autocomplete,
     backfill_anilist_formats,
@@ -245,14 +248,86 @@ class TestBackfillAnilistFormats(AniListTestCase):
         payload = post.await_args.args[0]
         self.assertEqual(sorted(payload["variables"]["ids"]), [1, 2, 3])
 
-    async def test_api_failure_changes_nothing(self):
-        post = mock.AsyncMock(return_value=(403, None, None))
+    async def run_backfill(self, post, sleep):
+        """Run the backfill with the network and the retry delay stubbed out."""
         with mock.patch.object(anilist_autocomplete, "_post_anilist", post), mock.patch(
-            "builtins.print"
-        ):
+            "lib.anilist_autocomplete.asyncio.sleep", sleep
+        ), mock.patch("builtins.print"):
             await backfill_anilist_formats(self.bot)
 
+    async def test_persistent_api_failure_changes_nothing(self):
+        post = mock.AsyncMock(return_value=(403, None, None))
+        # A cancelled sleep stands in for shutdown; without it the retry loop never ends.
+        sleep = mock.AsyncMock(side_effect=asyncio.CancelledError)
+
+        with self.assertRaises(asyncio.CancelledError):
+            await self.run_backfill(post, sleep)
+
         self.assertEqual(self.rows(), [(1, None), (2, None), (3, None)])
+        post.assert_awaited_once()
+        sleep.assert_awaited_once_with(BACKFILL_RETRY_SECONDS)
+
+    async def test_retries_after_http_failure(self):
+        post = mock.AsyncMock(
+            side_effect=[
+                (403, None, None),
+                (
+                    200,
+                    {"data": {"Page": {"media": [{"id": 1, "format": "MANGA"}]}}},
+                    None,
+                ),
+            ]
+        )
+        sleep = mock.AsyncMock()
+
+        await self.run_backfill(post, sleep)
+
+        self.assertEqual(self.rows(), [(1, "MANGA"), (2, None), (3, None)])
+        sleep.assert_awaited_once_with(BACKFILL_RETRY_SECONDS)
+
+    async def test_retries_after_client_error(self):
+        post = mock.AsyncMock(
+            side_effect=[
+                aiohttp.ClientError("connection reset"),
+                (
+                    200,
+                    {"data": {"Page": {"media": [{"id": 2, "format": "NOVEL"}]}}},
+                    None,
+                ),
+            ]
+        )
+        sleep = mock.AsyncMock()
+
+        await self.run_backfill(post, sleep)
+
+        self.assertEqual(self.rows(), [(1, None), (2, "NOVEL"), (3, None)])
+        sleep.assert_awaited_once_with(BACKFILL_RETRY_SECONDS)
+
+    async def test_does_not_retry_when_anilist_has_no_format(self):
+        post = mock.AsyncMock(
+            return_value=(
+                200,
+                {
+                    "data": {
+                        "Page": {
+                            "media": [
+                                {"id": 1, "format": "MANGA"},
+                                {"id": 2, "format": "NOVEL"},
+                                {"id": 3, "format": None},
+                            ]
+                        }
+                    }
+                },
+                None,
+            )
+        )
+        sleep = mock.AsyncMock()
+
+        await self.run_backfill(post, sleep)
+
+        self.assertEqual(self.rows(), [(1, "MANGA"), (2, "NOVEL"), (3, None)])
+        post.assert_awaited_once()
+        sleep.assert_not_awaited()
 
 
 if __name__ == "__main__":
