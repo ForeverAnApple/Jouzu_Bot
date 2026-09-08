@@ -10,6 +10,13 @@ from lib.bot import JouzuBot
 _log = logging.getLogger(__name__)
 
 ANILIST_API_URL = "https://graphql.anilist.co"
+ANILIST_REPO_URL = "https://github.com/ForeverAnApple/Jouzu_Bot"
+# AniList blocks anonymous, unidentified clients during attacks. Say who we are.
+ANILIST_HEADERS = {
+    "User-Agent": f"JouzuBot/1.0 (+{ANILIST_REPO_URL})",
+    "Referer": ANILIST_REPO_URL,
+    "Accept": "application/json",
+}
 
 ANILIST_NAME_QUERY = """
 query ($search: String, $type: MediaType) {
@@ -212,7 +219,9 @@ async def _post_anilist(payload: dict) -> tuple[int, dict | None, int | None]:
     and callers log that. Success is therefore status == 200, not a truthy body.
     """
     async with aiohttp.ClientSession() as session:
-        async with session.post(ANILIST_API_URL, json=payload) as response:
+        async with session.post(
+            ANILIST_API_URL, json=payload, headers=ANILIST_HEADERS
+        ) as response:
             try:
                 data = await response.json(content_type=None)
             except (aiohttp.ClientError, ValueError):
