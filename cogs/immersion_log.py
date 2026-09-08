@@ -35,12 +35,15 @@ from lib.vndb_autocomplete import (
 import asyncio
 import discord
 import humanize
+import logging
 import os
 import random
 
 from datetime import timedelta, datetime
 from discord.ext import commands
 from typing import Optional
+
+_log = logging.getLogger(__name__)
 
 EMOTE_SERVER = os.getenv("EMOTE_SERVER")
 AUTHORIZED_USER_IDS = [int(id) for id in os.getenv("AUTHORIZED_USERS").split(",")]
@@ -202,6 +205,7 @@ class ImmersionLog(commands.Cog):
         self._format_backfill_task = asyncio.get_running_loop().create_task(
             backfill_anilist_formats(self.bot)
         )
+        _log.info("Scheduled AniList format backfill")
 
     @discord.app_commands.command(name="log", description="Log your immersion!")
     @discord.app_commands.describe(

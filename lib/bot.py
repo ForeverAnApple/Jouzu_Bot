@@ -21,7 +21,7 @@ class JouzuBot(commands.Bot):
             os.makedirs(db_directory)
 
     async def on_ready(self):
-        print(f"Logged in as {self.user}")
+        _log.info("Logged in as %s", self.user)
         await self.create_debug_dm()
 
     async def setup_hook(self):
@@ -38,7 +38,7 @@ class JouzuBot(commands.Bot):
         for cog in cogs:
             cog = f"{self.cog_folder}.{cog[:-3]}"
             await self.load_extension(cog)
-            print(f"Loaded {cog}")
+            _log.info("Loaded %s", cog)
 
     async def create_debug_dm(self):
         await self.wait_until_ready()
