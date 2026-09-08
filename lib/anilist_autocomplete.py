@@ -134,6 +134,27 @@ ANILIST_ADD_FORMAT_COLUMN_QUERY = (
 
 ANILIST_TABLE_INFO_QUERY = "PRAGMA table_info(cached_anilist_results);"
 
+ANILIST_FORMAT_BACKFILL_QUERY = """
+query ($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids) {
+      id
+      format
+    }
+  }
+}"""
+
+ANILIST_MISSING_FORMAT_IDS_QUERY = """
+SELECT anilist_id FROM cached_anilist_results
+WHERE media_format IS NULL AND anilist_id IS NOT NULL;
+"""
+
+ANILIST_SET_FORMAT_QUERY = """
+UPDATE cached_anilist_results SET media_format = ? WHERE anilist_id = ?;
+"""
+
+BACKFILL_CHUNK_SIZE = 50
+
 # AniList MediaFormat enum -> label shown before the title in autocomplete.
 FORMAT_LABELS = {
     "MANGA": "Manga",
@@ -250,6 +271,32 @@ async def query_anilist(
         )
 
     return choices[:10]
+
+
+async def backfill_anilist_formats(bot: JouzuBot):
+    """Fill media_format for rows cached before the column existed; cache hits never re-query."""
+    rows = await bot.GET(ANILIST_MISSING_FORMAT_IDS_QUERY)
+    ids = [row[0] for row in rows]
+
+    for start in range(0, len(ids), BACKFILL_CHUNK_SIZE):
+        chunk = ids[start : start + BACKFILL_CHUNK_SIZE]
+        try:
+            status, data, _ = await _post_anilist(
+                {"query": ANILIST_FORMAT_BACKFILL_QUERY, "variables": {"ids": chunk}}
+            )
+        except (aiohttp.ClientError, TimeoutError) as error:
+            print(f"AniList format backfill stopped: {error}.")
+            return
+        if status != 200 or not data:
+            print(f"AniList format backfill stopped: HTTP {status}.")
+            return
+
+        media_list = ((data.get("data") or {}).get("Page") or {}).get("media") or []
+        for media in media_list:
+            media_id = media.get("id")
+            media_format = media.get("format")
+            if media_id and media_format:
+                await bot.RUN(ANILIST_SET_FORMAT_QUERY, (media_format, media_id))
 
 
 async def anime_manga_name_autocomplete(

@@ -8,7 +8,9 @@ import aiosqlite
 
 from lib import anilist_autocomplete
 from lib.anilist_autocomplete import (
+    CACHED_ANILIST_RESULTS_INSERT_QUERY,
     anime_manga_name_autocomplete,
+    backfill_anilist_formats,
     ensure_anilist_schema,
     format_label,
     query_anilist,
@@ -208,6 +210,49 @@ class TestCachedChoices(AniListTestCase):
             [choice.name for choice in choices],
             ["My Happy Marriage (ID: 1) (Cached)"],
         )
+
+
+class TestBackfillAnilistFormats(AniListTestCase):
+    async def asyncSetUp(self):
+        await ensure_anilist_schema(self.bot)
+        for anilist_id in (1, 2, 3):
+            await self.bot.RUN(
+                CACHED_ANILIST_RESULTS_INSERT_QUERY,
+                (anilist_id, "My Happy Marriage", None, None, "MANGA", None),
+            )
+
+    async def test_updates_returned_ids_only(self):
+        post = mock.AsyncMock(
+            return_value=(
+                200,
+                {
+                    "data": {
+                        "Page": {
+                            "media": [
+                                {"id": 1, "format": "MANGA"},
+                                {"id": 2, "format": "NOVEL"},
+                            ]
+                        }
+                    }
+                },
+                None,
+            )
+        )
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            await backfill_anilist_formats(self.bot)
+
+        self.assertEqual(self.rows(), [(1, "MANGA"), (2, "NOVEL"), (3, None)])
+        payload = post.await_args.args[0]
+        self.assertEqual(sorted(payload["variables"]["ids"]), [1, 2, 3])
+
+    async def test_api_failure_changes_nothing(self):
+        post = mock.AsyncMock(return_value=(403, None, None))
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post), mock.patch(
+            "builtins.print"
+        ):
+            await backfill_anilist_formats(self.bot)
+
+        self.assertEqual(self.rows(), [(1, None), (2, None), (3, None)])
 
 
 if __name__ == "__main__":

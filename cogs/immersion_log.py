@@ -3,6 +3,7 @@ from .username_fetcher import get_username_db, fetch_username_db
 from lib.anilist_autocomplete import (
     CACHED_ANILIST_THUMBNAIL_QUERY,
     CACHED_ANILIST_TITLE_QUERY,
+    backfill_anilist_formats,
     ensure_anilist_schema,
 )
 from lib.bot import JouzuBot
@@ -31,6 +32,7 @@ from lib.vndb_autocomplete import (
     CREATE_VNDB_TRIGGER_UPDATE,
 )
 
+import asyncio
 import discord
 import humanize
 import os
@@ -195,6 +197,11 @@ class ImmersionLog(commands.Cog):
         await self.bot.RUN(CREATE_TMDB_TRIGGER_DELETE)
         await self.bot.RUN(CREATE_TMDB_TRIGGER_INSERT)
         await self.bot.RUN(CREATE_TMDB_TRIGGER_UPDATE)
+
+        # Cogs load before Bot.start, so bot.loop is not usable yet; cog_load itself runs in the loop.
+        self._format_backfill_task = asyncio.get_running_loop().create_task(
+            backfill_anilist_formats(self.bot)
+        )
 
     @discord.app_commands.command(name="log", description="Log your immersion!")
     @discord.app_commands.describe(
