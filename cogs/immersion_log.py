@@ -1,13 +1,9 @@
 from .immersion_goals import check_goal_status, check_immersion_goal_status
 from .username_fetcher import get_username_db, fetch_username_db
 from lib.anilist_autocomplete import (
-    CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY,
     CACHED_ANILIST_THUMBNAIL_QUERY,
     CACHED_ANILIST_TITLE_QUERY,
-    CREATE_ANILIST_FTS5_TABLE_QUERY,
-    CREATE_ANILIST_TRIGGER_DELETE,
-    CREATE_ANILIST_TRIGGER_INSERT,
-    CREATE_ANILIST_TRIGGER_UPDATE,
+    ensure_anilist_schema,
 )
 from lib.bot import JouzuBot
 from lib.immersion_helpers import (
@@ -188,11 +184,7 @@ class ImmersionLog(commands.Cog):
 
     async def cog_load(self):
         await self.bot.RUN(CREATE_LOGS_TABLE)
-        await self.bot.RUN(CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY)
-        await self.bot.RUN(CREATE_ANILIST_FTS5_TABLE_QUERY)
-        await self.bot.RUN(CREATE_ANILIST_TRIGGER_DELETE)
-        await self.bot.RUN(CREATE_ANILIST_TRIGGER_INSERT)
-        await self.bot.RUN(CREATE_ANILIST_TRIGGER_UPDATE)
+        await ensure_anilist_schema(self.bot)
         await self.bot.RUN(CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY)
         await self.bot.RUN(CREATE_VNDB_FTS5_TABLE_QUERY)
         await self.bot.RUN(CREATE_VNDB_TRIGGER_DELETE)

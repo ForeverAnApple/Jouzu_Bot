@@ -4,11 +4,14 @@ import discord
 from lib.autocomplete_helpers import build_choice_name
 from lib.bot import JouzuBot
 
+ANILIST_API_URL = "https://graphql.anilist.co"
+
 ANILIST_NAME_QUERY = """
 query ($search: String, $type: MediaType) {
   Page(perPage: 10) {
     media(search: $search, type: $type) {
       id
+      format
       title {
         english
         romaji
@@ -25,6 +28,7 @@ ANILIST_ID_QUERY = """
 query ($id: Int) {
   Media(id: $id) {
     id
+    format
     title {
       english
       romaji
@@ -44,7 +48,8 @@ CREATE TABLE IF NOT EXISTS cached_anilist_results (
     title_native TEXT,
     cover_image_url TEXT,
     media_type TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    media_format TEXT
 );
 """
 
@@ -87,26 +92,28 @@ END;
 """
 
 CACHED_ANILIST_RESULTS_INSERT_QUERY = """
-INSERT INTO cached_anilist_results (anilist_id, title_english, title_native, cover_image_url, media_type) 
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO cached_anilist_results (anilist_id, title_english, title_native, cover_image_url, media_type, media_format) 
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(anilist_id) DO UPDATE SET 
     title_english=excluded.title_english,
     title_native=excluded.title_native,
     cover_image_url=excluded.cover_image_url,
     media_type=excluded.media_type,
+    media_format=excluded.media_format,
     timestamp=CURRENT_TIMESTAMP;
 """
 
+# Reads the base table, not anilist_fts: the FTS table lacks media_format and this LIKE search never used FTS anyway.
 CACHED_ANILIST_RESULTS_SEARCH_QUERY = """
-SELECT anilist_id, title_english, title_native, cover_image_url 
-FROM anilist_fts 
+SELECT anilist_id, title_english, title_native, media_format 
+FROM cached_anilist_results 
 WHERE (title_english LIKE '%' || ? || '%' OR title_native LIKE '%' || ? || '%')
 AND media_type = ? 
 LIMIT 10;
 """
 
 CACHED_ANILIST_RESULTS_BY_ID_QUERY = """
-SELECT anilist_id, title_english, title_native, cover_image_url FROM cached_anilist_results 
+SELECT anilist_id, title_english, title_native, media_format FROM cached_anilist_results 
 WHERE anilist_id = ? AND media_type = ?;
 """
 
@@ -121,12 +128,43 @@ FROM cached_anilist_results
 WHERE anilist_id = ?;
 """
 
+ANILIST_ADD_FORMAT_COLUMN_QUERY = (
+    "ALTER TABLE cached_anilist_results ADD COLUMN media_format TEXT;"
+)
+
+ANILIST_TABLE_INFO_QUERY = "PRAGMA table_info(cached_anilist_results);"
+
+
+async def ensure_anilist_schema(bot: JouzuBot):
+    """Create the AniList cache tables and add media_format to databases predating it."""
+    await bot.RUN(CACHED_ANILIST_RESULTS_CREATE_TABLE_QUERY)
+    await bot.RUN(CREATE_ANILIST_FTS5_TABLE_QUERY)
+    await bot.RUN(CREATE_ANILIST_TRIGGER_INSERT)
+    await bot.RUN(CREATE_ANILIST_TRIGGER_UPDATE)
+    await bot.RUN(CREATE_ANILIST_TRIGGER_DELETE)
+
+    columns = await bot.GET(ANILIST_TABLE_INFO_QUERY)
+    if not any(column[1] == "media_format" for column in columns):
+        await bot.RUN(ANILIST_ADD_FORMAT_COLUMN_QUERY)
+
+
+async def _post_anilist(payload: dict) -> tuple[int, dict | None, int | None]:
+    """POST to AniList; returns (status, json body or None, Retry-After seconds or None)."""
+    async with aiohttp.ClientSession() as session:
+        async with session.post(ANILIST_API_URL, json=payload) as response:
+            if response.status == 200:
+                return response.status, await response.json(), None
+            retry_after = response.headers.get("Retry-After")
+            return (
+                response.status,
+                None,
+                int(retry_after) if retry_after else None,
+            )
+
 
 async def query_anilist(
     interaction: discord.Interaction, current_input: str, bot: JouzuBot
 ):
-    url = "https://graphql.anilist.co"
-
     media_type = interaction.namespace["media_type"]
     media_type = (
         "MANGA"
@@ -140,57 +178,55 @@ async def query_anilist(
         query = ANILIST_NAME_QUERY
         variables = {"search": current_input, "type": media_type}
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            url, json={"query": query, "variables": variables}
-        ) as response:
-            if response.status == 200:
-                data = await response.json()
-                if current_input.isdigit():
-                    media_list = [data.get("data", {}).get("Media", {})]
-                else:
-                    media_list = data.get("data", {}).get("Page", {}).get("media", [])
+    status, data, retry_after = await _post_anilist(
+        {"query": query, "variables": variables}
+    )
+    if status == 429:
+        print(
+            f"API rate limit exceeded. Please wait {retry_after or 60} seconds before retrying."
+        )
+        return []
+    if status != 200 or not data:
+        return []
 
-                choices = []
-                for media in media_list:
-                    media_id = media.get("id")
-                    title_english = media.get("title", {}).get("english") or media.get(
-                        "title", {}
-                    ).get("romaji")
-                    title_native = media.get("title", {}).get("native")
-                    cover_image_url = media.get("coverImage", {}).get("medium")
-                    title = title_english or title_native
-                    if not title or not media_id:
-                        continue
+    # AniList can answer 200 with {"data": null, "errors": [...]}.
+    payload_data = data.get("data") or {}
+    if current_input.isdigit():
+        media_list = [payload_data.get("Media") or {}]
+    else:
+        media_list = (payload_data.get("Page") or {}).get("media") or []
 
-                    choice_name = build_choice_name(title, media_id, "API")
-                    if title:
-                        choices.append(
-                            discord.app_commands.Choice(
-                                name=choice_name, value=str(media_id)
-                            )
-                        )
+    choices = []
+    for media in media_list:
+        media_id = media.get("id")
+        title_english = media.get("title", {}).get("english") or media.get(
+            "title", {}
+        ).get("romaji")
+        title_native = media.get("title", {}).get("native")
+        cover_image_url = media.get("coverImage", {}).get("medium")
+        media_format = media.get("format")
+        title = title_english or title_native
+        if not title or not media_id:
+            continue
 
-                    await bot.RUN(
-                        CACHED_ANILIST_RESULTS_INSERT_QUERY,
-                        (
-                            media_id,
-                            title_english,
-                            title_native,
-                            cover_image_url,
-                            media_type,
-                        ),
-                    )
+        choice_name = build_choice_name(title, media_id, "API")
+        choices.append(
+            discord.app_commands.Choice(name=choice_name, value=str(media_id))
+        )
 
-                return choices[:10]
-            elif response.status == 429:
-                retry_after = int(response.headers.get("Retry-After", 60))
-                print(
-                    f"API rate limit exceeded. Please wait {retry_after} seconds before retrying."
-                )
-                return []
-            else:
-                return []
+        await bot.RUN(
+            CACHED_ANILIST_RESULTS_INSERT_QUERY,
+            (
+                media_id,
+                title_english,
+                title_native,
+                cover_image_url,
+                media_type,
+                media_format,
+            ),
+        )
+
+    return choices[:10]
 
 
 async def anime_manga_name_autocomplete(
@@ -211,7 +247,7 @@ async def anime_manga_name_autocomplete(
             CACHED_ANILIST_RESULTS_BY_ID_QUERY, (int(current_input), media_type)
         )
         if cached_result:
-            anilist_id, title_english, title_native, _ = cached_result
+            anilist_id, title_english, title_native, media_format = cached_result
             title = title_english or title_native
             if title:
                 choice_name = build_choice_name(title, anilist_id, "Cached")
@@ -227,7 +263,7 @@ async def anime_manga_name_autocomplete(
         )
         choices = []
         for cached_result in cached_results:
-            anilist_id, title_english, title_native, _ = cached_result
+            anilist_id, title_english, title_native, media_format = cached_result
             title = title_english or title_native
             if title:
                 choice_name = build_choice_name(title, anilist_id, "Cached")
