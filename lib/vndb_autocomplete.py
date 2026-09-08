@@ -1,6 +1,7 @@
 import aiohttp
 import discord
 
+from lib.autocomplete_helpers import build_choice_name
 from lib.bot import JouzuBot
 
 CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY = """
@@ -114,7 +115,7 @@ async def query_vndb(
                     if not title or not vndb_id:
                         continue
 
-                    choice_name = f"{title[:80]} (ID: {vndb_id}) (API)"
+                    choice_name = build_choice_name(title, vndb_id, "API")
                     if title:
                         choices.append(
                             discord.app_commands.Choice(
@@ -150,7 +151,7 @@ async def vn_name_autocomplete(interaction: discord.Interaction, current_input: 
         )
         if cached_result:
             vndb_id, title, _ = cached_result
-            choice_name = f"{title[:80]} (ID: {vndb_id}) (Cached)"
+            choice_name = build_choice_name(title, vndb_id, "Cached")
             return [discord.app_commands.Choice(name=choice_name, value=str(vndb_id))]
         else:
             return await query_vndb(interaction, current_input, jouzu_bot)
@@ -161,7 +162,7 @@ async def vn_name_autocomplete(interaction: discord.Interaction, current_input: 
         choices = []
         for cached_result in cached_results:
             vndb_id, title, _ = cached_result
-            choice_name = f"{title[:80]} (ID: {vndb_id}) (Cached)"
+            choice_name = build_choice_name(title, vndb_id, "Cached")
             choices.append(
                 discord.app_commands.Choice(name=choice_name, value=str(vndb_id))
             )

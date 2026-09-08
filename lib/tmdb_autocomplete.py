@@ -2,6 +2,7 @@ import aiohttp
 import discord
 import os
 
+from lib.autocomplete_helpers import build_choice_name
 from lib.bot import JouzuBot
 
 CACHED_TMDB_RESULTS_CREATE_TABLE_QUERY = """
@@ -119,7 +120,7 @@ async def query_tmdb(
                     if not title or not media_id:
                         continue
 
-                    choice_name = f"{title[:80]} (ID: {media_id}) (API)"
+                    choice_name = build_choice_name(title, media_id, "API")
                     if title:
                         choices.append(
                             discord.app_commands.Choice(
@@ -153,7 +154,7 @@ async def listening_autocomplete(interaction: discord.Interaction, current_input
     choices = []
     for cached_result in cached_results:
         tmdb_id, title, original_title, _, _ = cached_result
-        choice_name = f"{title[:80]} (ID: {tmdb_id}) (Cached)"
+        choice_name = build_choice_name(title, tmdb_id, "Cached")
         choices.append(
             discord.app_commands.Choice(name=choice_name, value=str(tmdb_id))
         )

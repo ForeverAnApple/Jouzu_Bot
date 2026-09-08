@@ -1,6 +1,7 @@
 import aiohttp
 import discord
 
+from lib.autocomplete_helpers import build_choice_name
 from lib.bot import JouzuBot
 
 ANILIST_NAME_QUERY = """
@@ -162,7 +163,7 @@ async def query_anilist(
                     if not title or not media_id:
                         continue
 
-                    choice_name = f"{title[:80]} (ID: {media_id}) (API)"
+                    choice_name = build_choice_name(title, media_id, "API")
                     if title:
                         choices.append(
                             discord.app_commands.Choice(
@@ -213,7 +214,7 @@ async def anime_manga_name_autocomplete(
             anilist_id, title_english, title_native, _ = cached_result
             title = title_english or title_native
             if title:
-                choice_name = f"{title[:80]} (ID: {anilist_id}) (Cached)"
+                choice_name = build_choice_name(title, anilist_id, "Cached")
                 return [
                     discord.app_commands.Choice(name=choice_name, value=str(anilist_id))
                 ]
@@ -229,7 +230,7 @@ async def anime_manga_name_autocomplete(
             anilist_id, title_english, title_native, _ = cached_result
             title = title_english or title_native
             if title:
-                choice_name = f"{title[:80]} (ID: {anilist_id}) (Cached)"
+                choice_name = build_choice_name(title, anilist_id, "Cached")
                 choices.append(
                     discord.app_commands.Choice(name=choice_name, value=str(anilist_id))
                 )
