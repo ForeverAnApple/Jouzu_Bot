@@ -134,6 +134,27 @@ ANILIST_ADD_FORMAT_COLUMN_QUERY = (
 
 ANILIST_TABLE_INFO_QUERY = "PRAGMA table_info(cached_anilist_results);"
 
+# AniList MediaFormat enum -> label shown before the title in autocomplete.
+FORMAT_LABELS = {
+    "MANGA": "Manga",
+    "NOVEL": "Light Novel",
+    "ONE_SHOT": "One-shot",
+    "TV": "TV",
+    "TV_SHORT": "TV Short",
+    "MOVIE": "Movie",
+    "SPECIAL": "Special",
+    "OVA": "OVA",
+    "ONA": "ONA",
+    "MUSIC": "Music",
+}
+
+
+def format_label(media_format):
+    """Label for a MediaFormat value; unknown enum members degrade to a readable form."""
+    if not media_format:
+        return None
+    return FORMAT_LABELS.get(media_format) or media_format.replace("_", " ").title()
+
 
 async def ensure_anilist_schema(bot: JouzuBot):
     """Create the AniList cache tables and add media_format to databases predating it."""
@@ -209,7 +230,9 @@ async def query_anilist(
         if not title or not media_id:
             continue
 
-        choice_name = build_choice_name(title, media_id, "API")
+        choice_name = build_choice_name(
+            title, media_id, "API", label=format_label(media_format)
+        )
         choices.append(
             discord.app_commands.Choice(name=choice_name, value=str(media_id))
         )
@@ -250,7 +273,9 @@ async def anime_manga_name_autocomplete(
             anilist_id, title_english, title_native, media_format = cached_result
             title = title_english or title_native
             if title:
-                choice_name = build_choice_name(title, anilist_id, "Cached")
+                choice_name = build_choice_name(
+                    title, anilist_id, "Cached", label=format_label(media_format)
+                )
                 return [
                     discord.app_commands.Choice(name=choice_name, value=str(anilist_id))
                 ]
@@ -266,7 +291,9 @@ async def anime_manga_name_autocomplete(
             anilist_id, title_english, title_native, media_format = cached_result
             title = title_english or title_native
             if title:
-                choice_name = build_choice_name(title, anilist_id, "Cached")
+                choice_name = build_choice_name(
+                    title, anilist_id, "Cached", label=format_label(media_format)
+                )
                 choices.append(
                     discord.app_commands.Choice(name=choice_name, value=str(anilist_id))
                 )

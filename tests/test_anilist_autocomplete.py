@@ -7,7 +7,12 @@ from unittest import mock
 import aiosqlite
 
 from lib import anilist_autocomplete
-from lib.anilist_autocomplete import ensure_anilist_schema, query_anilist
+from lib.anilist_autocomplete import (
+    anime_manga_name_autocomplete,
+    ensure_anilist_schema,
+    format_label,
+    query_anilist,
+)
 
 OLD_CACHE_TABLE = """
 CREATE TABLE cached_anilist_results (
@@ -116,8 +121,14 @@ class TestQueryAnilist(AniListTestCase):
         with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
             choices = await query_anilist(self.interaction, "Happy", self.bot)
 
-        self.assertEqual(len(choices), 2)
         self.assertEqual(self.rows(), [(1, "MANGA"), (2, "NOVEL")])
+        self.assertEqual(
+            [choice.name for choice in choices],
+            [
+                "[Manga] My Happy Marriage (ID: 1) (API)",
+                "[Light Novel] My Happy Marriage (ID: 2) (API)",
+            ],
+        )
 
     async def test_null_data_with_errors(self):
         post = mock.AsyncMock(
@@ -136,6 +147,67 @@ class TestQueryAnilist(AniListTestCase):
             choices = await query_anilist(self.interaction, "Happy", self.bot)
 
         self.assertEqual(choices, [])
+
+
+class TestFormatLabel(unittest.TestCase):
+    def test_known_values(self):
+        self.assertEqual(format_label("ONE_SHOT"), "One-shot")
+        self.assertEqual(format_label("NOVEL"), "Light Novel")
+
+    def test_missing_format(self):
+        self.assertIsNone(format_label(None))
+
+    def test_unknown_enum_member(self):
+        self.assertEqual(format_label("WEIRD_NEW"), "Weird New")
+
+
+class TestCachedChoices(AniListTestCase):
+    async def asyncSetUp(self):
+        await ensure_anilist_schema(self.bot)
+        post = mock.AsyncMock(
+            return_value=(
+                200,
+                {"data": {"Page": {"media": [media(1, "MANGA"), media(2, "NOVEL")]}}},
+                None,
+            )
+        )
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            await query_anilist(self.interaction, "Happy", self.bot)
+
+    async def test_search_uses_cache_and_labels(self):
+        post = mock.AsyncMock()
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            choices = await anime_manga_name_autocomplete(self.interaction, "Happy")
+
+        post.assert_not_called()
+        self.assertEqual(
+            [choice.name for choice in choices],
+            [
+                "[Manga] My Happy Marriage (ID: 1) (Cached)",
+                "[Light Novel] My Happy Marriage (ID: 2) (Cached)",
+            ],
+        )
+
+    async def test_by_id_labels(self):
+        post = mock.AsyncMock()
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            choices = await anime_manga_name_autocomplete(self.interaction, "2")
+
+        post.assert_not_called()
+        self.assertEqual(
+            [choice.name for choice in choices],
+            ["[Light Novel] My Happy Marriage (ID: 2) (Cached)"],
+        )
+
+    async def test_null_format_has_no_prefix(self):
+        await self.bot.RUN(
+            "UPDATE cached_anilist_results SET media_format = NULL WHERE anilist_id = 1;"
+        )
+        choices = await anime_manga_name_autocomplete(self.interaction, "1")
+        self.assertEqual(
+            [choice.name for choice in choices],
+            ["My Happy Marriage (ID: 1) (Cached)"],
+        )
 
 
 if __name__ == "__main__":
