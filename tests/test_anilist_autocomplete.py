@@ -11,6 +11,8 @@ import aiosqlite
 
 from lib import anilist_autocomplete
 from lib.anilist_autocomplete import (
+    BACKFILL_CHUNK_DELAY_SECONDS,
+    BACKFILL_MAX_RATE_LIMIT_RETRIES,
     BACKFILL_RETRY_SECONDS,
     CACHED_ANILIST_RESULTS_INSERT_QUERY,
     anime_manga_name_autocomplete,
@@ -294,6 +296,18 @@ class TestBackfillAnilistFormats(AniListTestCase):
         ):
             await backfill_anilist_formats(self.bot)
 
+    @staticmethod
+    def slept(sleep):
+        """Every delay the backfill waited on, in order."""
+        return [call.args[0] for call in sleep.await_args_list]
+
+    async def seed_rows(self, anilist_ids):
+        for anilist_id in anilist_ids:
+            await self.bot.RUN(
+                CACHED_ANILIST_RESULTS_INSERT_QUERY,
+                (anilist_id, "My Happy Marriage", None, None, "MANGA", None),
+            )
+
     async def test_persistent_api_failure_changes_nothing(self):
         post = mock.AsyncMock(return_value=(403, None, None))
         # A cancelled sleep stands in for shutdown; without it the retry loop never ends.
@@ -407,6 +421,91 @@ class TestBackfillAnilistFormats(AniListTestCase):
         self.assertEqual(self.rows(), [(1, "MANGA"), (2, "NOVEL"), (3, None)])
         post.assert_awaited_once()
         sleep.assert_not_awaited()
+
+    async def test_rate_limit_pauses_and_retries_same_chunk(self):
+        """A 429 is a pause, not a failure: same chunk again after Retry-After."""
+        post = mock.AsyncMock(
+            side_effect=[
+                (429, {"errors": [{"message": "Too Many Requests."}]}, 7),
+                (
+                    200,
+                    {"data": {"Page": {"media": [{"id": 1, "format": "MANGA"}]}}},
+                    None,
+                ),
+            ]
+        )
+        sleep = mock.AsyncMock()
+
+        await self.run_backfill(post, sleep)
+
+        self.assertEqual(self.rows(), [(1, "MANGA"), (2, None), (3, None)])
+        self.assertEqual(post.await_count, 2)
+        first, second = post.await_args_list
+        self.assertEqual(
+            first.args[0]["variables"]["ids"], second.args[0]["variables"]["ids"]
+        )
+        self.assertEqual(self.slept(sleep), [7])
+
+    async def test_rate_limit_without_retry_after_pauses_a_minute(self):
+        post = mock.AsyncMock(
+            side_effect=[
+                (429, {"errors": [{"message": "Too Many Requests."}]}, None),
+                (
+                    200,
+                    {"data": {"Page": {"media": [{"id": 1, "format": "MANGA"}]}}},
+                    None,
+                ),
+            ]
+        )
+        sleep = mock.AsyncMock()
+
+        await self.run_backfill(post, sleep)
+
+        self.assertEqual(self.slept(sleep), [60])
+
+    async def test_paces_between_chunks(self):
+        await self.seed_rows(range(4, 61))
+
+        def respond(payload):
+            ids = payload["variables"]["ids"]
+            media_list = [{"id": anilist_id, "format": "MANGA"} for anilist_id in ids]
+            return 200, {"data": {"Page": {"media": media_list}}}, None
+
+        post = mock.AsyncMock(side_effect=respond)
+        sleep = mock.AsyncMock()
+
+        await self.run_backfill(post, sleep)
+
+        self.assertEqual(post.await_count, 2)
+        self.assertEqual([len(call.args[0]["variables"]["ids"]) for call in post.await_args_list], [50, 10])
+        # One delay between the two chunks, none after the last.
+        self.assertEqual(self.slept(sleep), [BACKFILL_CHUNK_DELAY_SECONDS])
+
+    async def test_gives_up_after_repeated_rate_limits(self):
+        post = mock.AsyncMock(
+            return_value=(429, {"errors": [{"message": "Too Many Requests."}]}, 1)
+        )
+
+        def wait(seconds):
+            # Only the hourly retry stands in for shutdown; the pauses must go through.
+            if seconds == BACKFILL_RETRY_SECONDS:
+                raise asyncio.CancelledError
+
+        sleep = mock.AsyncMock(side_effect=wait)
+
+        with self.assertLogs(LOGGER, level="WARNING") as logs:
+            with self.assertRaises(asyncio.CancelledError):
+                await self.run_backfill(post, sleep)
+
+        self.assertEqual(post.await_count, BACKFILL_MAX_RATE_LIMIT_RETRIES + 1)
+        self.assertEqual(
+            self.slept(sleep),
+            [1] * BACKFILL_MAX_RATE_LIMIT_RETRIES + [BACKFILL_RETRY_SECONDS],
+        )
+        self.assertEqual(self.rows(), [(1, None), (2, None), (3, None)])
+        warning = logs.output[0]
+        self.assertIn("HTTP 429", warning)
+        self.assertIn("retrying in 60 minutes", warning)
 
 
 if __name__ == "__main__":

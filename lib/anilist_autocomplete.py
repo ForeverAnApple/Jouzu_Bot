@@ -167,6 +167,12 @@ UPDATE cached_anilist_results SET media_format = ? WHERE anilist_id = ?;
 
 BACKFILL_CHUNK_SIZE = 50
 BACKFILL_RETRY_SECONDS = 3600
+# AniList allows 90 requests/minute, and drops to about 30 while degraded. One chunk
+# every 2.5s is ~24 requests/minute, under the degraded ceiling, so a large backfill
+# paces itself instead of walking into a 429 within seconds.
+BACKFILL_CHUNK_DELAY_SECONDS = 2.5
+# A 429 pauses the chunk rather than failing it, but a stuck API must not spin forever.
+BACKFILL_MAX_RATE_LIMIT_RETRIES = 5
 
 # AniList MediaFormat enum -> label shown before the title in autocomplete.
 FORMAT_LABELS = {
@@ -319,6 +325,36 @@ async def query_anilist(
     return choices[:10]
 
 
+async def _fetch_backfill_chunk(chunk: list[int]) -> tuple[list | None, str | None]:
+    """Formats for one chunk of ids, waiting out rate limits.
+
+    Returns (media list, None) on success and (None, failure description) once the chunk
+    is beyond saving. A 429 is a pause signal, so the same chunk is retried after the
+    Retry-After delay; only a run of them counts as a failure.
+    """
+    rate_limited = 0
+    while True:
+        try:
+            status, data, retry_after = await _post_anilist(
+                {"query": ANILIST_FORMAT_BACKFILL_QUERY, "variables": {"ids": chunk}}
+            )
+        except (aiohttp.ClientError, TimeoutError) as error:
+            return None, str(error) or type(error).__name__
+
+        if status == 429 and rate_limited < BACKFILL_MAX_RATE_LIMIT_RETRIES:
+            rate_limited += 1
+            wait = retry_after or 60
+            _log.info("AniList rate limited during backfill; pausing %ss", wait)
+            await asyncio.sleep(wait)
+            continue
+
+        if status != 200 or data is None:
+            message = _anilist_error_message(data)
+            return None, f"HTTP {status}: {message}" if message else f"HTTP {status}"
+
+        return ((data.get("data") or {}).get("Page") or {}).get("media") or [], None
+
+
 async def backfill_anilist_formats(bot: JouzuBot):
     """Fill media_format for rows cached before the column existed; cache hits never re-query."""
     # AniList outages last hours, so a deploy during one must self-heal instead of leaving
@@ -332,21 +368,15 @@ async def backfill_anilist_formats(bot: JouzuBot):
 
         failure = None
         updated = 0
-        for start in range(0, len(ids), BACKFILL_CHUNK_SIZE):
-            chunk = ids[start : start + BACKFILL_CHUNK_SIZE]
-            try:
-                status, data, _ = await _post_anilist(
-                    {"query": ANILIST_FORMAT_BACKFILL_QUERY, "variables": {"ids": chunk}}
-                )
-            except (aiohttp.ClientError, TimeoutError) as error:
-                failure = str(error) or type(error).__name__
-                break
-            if status != 200 or data is None:
-                message = _anilist_error_message(data)
-                failure = f"HTTP {status}: {message}" if message else f"HTTP {status}"
+        chunks = [
+            ids[start : start + BACKFILL_CHUNK_SIZE]
+            for start in range(0, len(ids), BACKFILL_CHUNK_SIZE)
+        ]
+        for index, chunk in enumerate(chunks):
+            media_list, failure = await _fetch_backfill_chunk(chunk)
+            if failure is not None:
                 break
 
-            media_list = ((data.get("data") or {}).get("Page") or {}).get("media") or []
             chunk_updated = 0
             for media in media_list:
                 media_id = media.get("id")
@@ -360,6 +390,9 @@ async def backfill_anilist_formats(bot: JouzuBot):
                 chunk_updated,
                 len(chunk),
             )
+
+            if index < len(chunks) - 1:
+                await asyncio.sleep(BACKFILL_CHUNK_DELAY_SECONDS)
 
         # Rows still NULL after a clean pass have no format on AniList either.
         if failure is None:
