@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import sqlite3
 import tempfile
@@ -18,6 +19,8 @@ from lib.anilist_autocomplete import (
     format_label,
     query_anilist,
 )
+
+LOGGER = "lib.anilist_autocomplete"
 
 OLD_CACHE_TABLE = """
 CREATE TABLE cached_anilist_results (
@@ -76,6 +79,12 @@ class AniListTestCase(unittest.IsolatedAsyncioTestCase):
         os.remove(self.db_path)
         self.bot = FakeBot(self.db_path)
         self.interaction = FakeInteraction(self.bot)
+
+        # Tests assert on logs explicitly; a handler keeps the rest off stderr.
+        logger = logging.getLogger(LOGGER)
+        handler = logging.NullHandler()
+        logger.addHandler(handler)
+        self.addCleanup(logger.removeHandler, handler)
 
     def tearDown(self):
         if os.path.exists(self.db_path):
@@ -140,18 +149,48 @@ class TestQueryAnilist(AniListTestCase):
             return_value=(200, {"data": None, "errors": [{"message": "boom"}]}, None)
         )
         with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
-            choices = await query_anilist(self.interaction, "Happy", self.bot)
+            with self.assertLogs(LOGGER, level="WARNING") as logs:
+                choices = await query_anilist(self.interaction, "Happy", self.bot)
 
         self.assertEqual(choices, [])
+        self.assertIn("boom", logs.output[0])
 
     async def test_rate_limited(self):
         post = mock.AsyncMock(return_value=(429, None, 30))
-        with mock.patch.object(anilist_autocomplete, "_post_anilist", post), mock.patch(
-            "builtins.print"
-        ):
-            choices = await query_anilist(self.interaction, "Happy", self.bot)
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            with self.assertLogs(LOGGER, level="WARNING") as logs:
+                choices = await query_anilist(self.interaction, "Happy", self.bot)
 
         self.assertEqual(choices, [])
+        self.assertIn("rate limited", logs.output[0])
+        self.assertIn("30", logs.output[0])
+
+    async def test_logs_api_error_body(self):
+        """A 403 outage must name itself in the logs, not vanish into an empty list."""
+        post = mock.AsyncMock(
+            return_value=(
+                403,
+                {"errors": [{"message": "The AniList API has been temporarily disabled"}]},
+                None,
+            )
+        )
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            with self.assertLogs(LOGGER, level="WARNING") as logs:
+                choices = await query_anilist(self.interaction, "Happy", self.bot)
+
+        self.assertEqual(choices, [])
+        self.assertIn("HTTP 403", logs.output[0])
+        self.assertIn("The AniList API has been temporarily disabled", logs.output[0])
+
+    async def test_success_logs_no_warning(self):
+        post = mock.AsyncMock(
+            return_value=(200, {"data": {"Page": {"media": [media(1, "MANGA")]}}}, None)
+        )
+        with mock.patch.object(anilist_autocomplete, "_post_anilist", post):
+            with self.assertNoLogs(LOGGER, level="WARNING"):
+                choices = await query_anilist(self.interaction, "Happy", self.bot)
+
+        self.assertEqual(len(choices), 1)
 
 
 class TestFormatLabel(unittest.TestCase):
@@ -252,7 +291,7 @@ class TestBackfillAnilistFormats(AniListTestCase):
         """Run the backfill with the network and the retry delay stubbed out."""
         with mock.patch.object(anilist_autocomplete, "_post_anilist", post), mock.patch(
             "lib.anilist_autocomplete.asyncio.sleep", sleep
-        ), mock.patch("builtins.print"):
+        ):
             await backfill_anilist_formats(self.bot)
 
     async def test_persistent_api_failure_changes_nothing(self):
@@ -302,6 +341,46 @@ class TestBackfillAnilistFormats(AniListTestCase):
 
         self.assertEqual(self.rows(), [(1, None), (2, "NOVEL"), (3, None)])
         sleep.assert_awaited_once_with(BACKFILL_RETRY_SECONDS)
+
+    async def test_logs_failure_and_retry_delay(self):
+        post = mock.AsyncMock(
+            return_value=(
+                403,
+                {"errors": [{"message": "The AniList API has been temporarily disabled"}]},
+                None,
+            )
+        )
+        sleep = mock.AsyncMock(side_effect=asyncio.CancelledError)
+
+        with self.assertLogs(LOGGER, level="WARNING") as logs:
+            with self.assertRaises(asyncio.CancelledError):
+                await self.run_backfill(post, sleep)
+
+        warning = logs.output[0]
+        self.assertIn("HTTP 403", warning)
+        self.assertIn("The AniList API has been temporarily disabled", warning)
+        self.assertIn("retrying in 60 minutes", warning)
+
+    async def test_logs_completion(self):
+        post = mock.AsyncMock(
+            return_value=(
+                200,
+                {"data": {"Page": {"media": [{"id": 1, "format": "MANGA"}]}}},
+                None,
+            )
+        )
+        sleep = mock.AsyncMock()
+
+        with self.assertLogs(LOGGER, level="INFO") as logs:
+            await self.run_backfill(post, sleep)
+
+        self.assertTrue(
+            any(
+                "backfill complete; 1 row(s) updated, 2 left" in line
+                for line in logs.output
+            ),
+            logs.output,
+        )
 
     async def test_does_not_retry_when_anilist_has_no_format(self):
         post = mock.AsyncMock(

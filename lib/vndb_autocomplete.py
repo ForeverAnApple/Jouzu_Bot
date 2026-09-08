@@ -1,8 +1,12 @@
+import logging
+
 import aiohttp
 import discord
 
 from lib.autocomplete_helpers import build_choice_name
 from lib.bot import JouzuBot
+
+_log = logging.getLogger(__name__)
 
 CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY = """
 CREATE TABLE IF NOT EXISTS cached_vndb_results (
@@ -131,11 +135,10 @@ async def query_vndb(
                 return choices[:10]
             elif response.status == 429:
                 retry_after = int(response.headers.get("Retry-After", 60))
-                print(
-                    f"API rate limit exceeded. Please wait {retry_after} seconds before retrying."
-                )
+                _log.warning("VNDB rate limited; retry after %ss", retry_after)
                 return []
             else:
+                _log.warning("VNDB query failed: HTTP %s", response.status)
                 return []
 
 

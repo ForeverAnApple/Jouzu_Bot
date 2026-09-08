@@ -1,10 +1,13 @@
 import asyncio
+import logging
 
 import aiohttp
 import discord
 
 from lib.autocomplete_helpers import build_choice_name
 from lib.bot import JouzuBot
+
+_log = logging.getLogger(__name__)
 
 ANILIST_API_URL = "https://graphql.anilist.co"
 
@@ -191,18 +194,35 @@ async def ensure_anilist_schema(bot: JouzuBot):
     columns = await bot.GET(ANILIST_TABLE_INFO_QUERY)
     if not any(column[1] == "media_format" for column in columns):
         await bot.RUN(ANILIST_ADD_FORMAT_COLUMN_QUERY)
+        _log.info("Added media_format column to cached_anilist_results")
+
+
+def _anilist_error_message(data) -> str:
+    """First message out of an AniList {"errors": [...]} body, or an empty string."""
+    errors = (data or {}).get("errors") or []
+    if errors and isinstance(errors[0], dict):
+        return errors[0].get("message") or ""
+    return ""
 
 
 async def _post_anilist(payload: dict) -> tuple[int, dict | None, int | None]:
-    """POST to AniList; returns (status, json body or None, Retry-After seconds or None)."""
+    """POST to AniList; returns (status, json body or None, Retry-After seconds or None).
+
+    The body is parsed on failures too: AniList explains itself in "errors" even on 403,
+    and callers log that. Success is therefore status == 200, not a truthy body.
+    """
     async with aiohttp.ClientSession() as session:
         async with session.post(ANILIST_API_URL, json=payload) as response:
+            try:
+                data = await response.json(content_type=None)
+            except (aiohttp.ClientError, ValueError):
+                data = None
             if response.status == 200:
-                return response.status, await response.json(), None
+                return response.status, data, None
             retry_after = response.headers.get("Retry-After")
             return (
                 response.status,
-                None,
+                data,
                 int(retry_after) if retry_after else None,
             )
 
@@ -227,15 +247,23 @@ async def query_anilist(
         {"query": query, "variables": variables}
     )
     if status == 429:
-        print(
-            f"API rate limit exceeded. Please wait {retry_after or 60} seconds before retrying."
-        )
+        _log.warning("AniList rate limited; retry after %ss", retry_after or 60)
         return []
-    if status != 200 or not data:
+    if status != 200:
+        _log.warning(
+            "AniList query failed: HTTP %s %s", status, _anilist_error_message(data)
+        )
         return []
 
     # AniList can answer 200 with {"data": null, "errors": [...]}.
-    payload_data = data.get("data") or {}
+    payload_data = (data or {}).get("data") or {}
+    if not payload_data:
+        _log.warning(
+            "AniList returned no data for %r: %s",
+            current_input,
+            _anilist_error_message(data) or "empty response",
+        )
+        return []
     if current_input.isdigit():
         media_list = [payload_data.get("Media") or {}]
     else:
@@ -273,6 +301,12 @@ async def query_anilist(
             ),
         )
 
+    _log.debug(
+        "AniList returned %d result(s) for %r (%s)",
+        len(choices),
+        current_input,
+        media_type,
+    )
     return choices[:10]
 
 
@@ -285,8 +319,10 @@ async def backfill_anilist_formats(bot: JouzuBot):
         ids = [row[0] for row in rows]
         if not ids:
             return
+        _log.info("AniList format backfill: %d row(s) missing format", len(ids))
 
         failure = None
+        updated = 0
         for start in range(0, len(ids), BACKFILL_CHUNK_SIZE):
             chunk = ids[start : start + BACKFILL_CHUNK_SIZE]
             try:
@@ -296,24 +332,40 @@ async def backfill_anilist_formats(bot: JouzuBot):
             except (aiohttp.ClientError, TimeoutError) as error:
                 failure = str(error) or type(error).__name__
                 break
-            if status != 200 or not data:
-                failure = f"HTTP {status}"
+            if status != 200 or data is None:
+                message = _anilist_error_message(data)
+                failure = f"HTTP {status}: {message}" if message else f"HTTP {status}"
                 break
 
             media_list = ((data.get("data") or {}).get("Page") or {}).get("media") or []
+            chunk_updated = 0
             for media in media_list:
                 media_id = media.get("id")
                 media_format = media.get("format")
                 if media_id and media_format:
                     await bot.RUN(ANILIST_SET_FORMAT_QUERY, (media_format, media_id))
+                    chunk_updated += 1
+            updated += chunk_updated
+            _log.debug(
+                "AniList format backfill: %d of %d row(s) updated in this chunk",
+                chunk_updated,
+                len(chunk),
+            )
 
         # Rows still NULL after a clean pass have no format on AniList either.
         if failure is None:
+            _log.info(
+                "AniList format backfill complete; %d row(s) updated, "
+                "%d left without a format on AniList",
+                updated,
+                len(ids) - updated,
+            )
             return
 
-        print(
-            f"AniList format backfill failed ({failure}); "
-            f"retrying in {BACKFILL_RETRY_SECONDS // 60} minutes."
+        _log.warning(
+            "AniList format backfill failed (%s); retrying in %d minutes",
+            failure,
+            BACKFILL_RETRY_SECONDS // 60,
         )
         await asyncio.sleep(BACKFILL_RETRY_SECONDS)
 
