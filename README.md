@@ -28,6 +28,17 @@ Statistics:
 
 ---
 
+#### `user_preferences.py`
+
+Per-user preferences for how the bot behaves. Each preference is a column on the user's row.
+
+Commands:
+* `/toggle_log_warning` - Turn the private warning about missing time or units on `/log` on or off for yourself. Default is on. The bot reminds you about this command at most once every 3 days, and only when you trigger the warning repeatedly.
+
+Note: New slash commands need `%sync_guild` or `%sync_global` (see `sync.py`) before Discord shows them.
+
+---
+
 #### `selfmute.py`
 
 Allows users to temporarily mute themselves for a specified duration. Users can choose from multiple mute roles and their existing roles are automatically restored when the mute expires.

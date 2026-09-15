@@ -1,4 +1,9 @@
 from .immersion_goals import check_goal_status, check_immersion_goal_status
+from .user_preferences import (
+    CREATE_USER_PREFERENCES_TABLE,
+    log_warnings_enabled,
+    record_log_warning,
+)
 from .username_fetcher import get_username_db, fetch_username_db
 from lib.anilist_autocomplete import (
     CACHED_ANILIST_THUMBNAIL_QUERY,
@@ -189,6 +194,7 @@ class ImmersionLog(commands.Cog):
 
     async def cog_load(self):
         await self.bot.RUN(CREATE_LOGS_TABLE)
+        await self.bot.RUN(CREATE_USER_PREFERENCES_TABLE)
         await ensure_anilist_schema(self.bot)
         await self.bot.RUN(CACHED_VNDB_RESULTS_CREATE_TABLE_QUERY)
         await self.bot.RUN(CREATE_VNDB_FTS5_TABLE_QUERY)
@@ -496,15 +502,28 @@ class ImmersionLog(commands.Cog):
             await logged_message.reply(achievement_notif_str)
 
         # Warn user of potential mistracking
+        warning_text = ""
         if not unit_is_time:
             if time_mins and not amount:
-                return await logged_message.reply(
-                    f"<@{user.id}>**WARNING** You have tracked only immersion time and not {unit_name}s for {media_type}. Your tracking will **NOT** be counted towards {media_type} achievements. You can `/log_undo` if this was a mistake."
-                )
+                warning_text = f"**WARNING** You have tracked only immersion time and not {unit_name}s for {media_type}. Your tracking will **NOT** be counted towards {media_type} achievements. You can `/log_undo` if this was a mistake."
             elif amount and not time_mins:
-                return await logged_message.reply(
-                    f"<@{user.id}>**WARNING** You have tracked only {unit_name}s for {media_type} and not total immersion time. Your tracking will **NOT** be counted towards server-wide immersion goals. Your tracking will also **NOT** be counted towards total immersion achievements. You can `/log_undo` if this was a mistake."
-                )
+                warning_text = f"**WARNING** You have tracked only {unit_name}s for {media_type} and not total immersion time. Your tracking will **NOT** be counted towards server-wide immersion goals. Your tracking will also **NOT** be counted towards total immersion achievements. You can `/log_undo` if this was a mistake."
+
+        if warning_text:
+            # The log is already committed and the embed already sent, so a
+            # failure here must not surface as a command error.
+            try:
+                if await log_warnings_enabled(self.bot, user.id):
+                    # The embed consumed the deferred response, so this followup
+                    # is a fresh message and Discord honors ephemeral here.
+                    await interaction.followup.send(warning_text, ephemeral=True)
+                    if await record_log_warning(self.bot, user.id):
+                        await interaction.followup.send(
+                            "Tip: you can turn these warnings off with `/toggle_log_warning`.",
+                            ephemeral=True,
+                        )
+            except Exception:
+                _log.exception("Failed to send /log warning for user %s", user.id)
 
     async def get_consecutive_days_logged(self, user_id: int) -> int:
         result = await self.bot.GET(GET_CONSECUTIVE_DAYS_QUERY, (user_id,))
